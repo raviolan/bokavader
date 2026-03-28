@@ -4,6 +4,20 @@ import { revalidatePath } from "next/cache";
 
 import { createBooking, parseBookingForm, type BookingFormState } from "@/lib/bookings";
 
+function getSubmissionErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Booking failed.";
+  }
+
+  const message = error.message.toLowerCase();
+
+  if (message.includes("authentication") || message.includes("circuit breaker open")) {
+    return "Database login failed. Check the DATABASE_URL credentials and pooler settings.";
+  }
+
+  return error.message;
+}
+
 export async function submitBooking(
   _prevState: BookingFormState,
   formData: FormData,
@@ -22,7 +36,7 @@ export async function submitBooking(
   } catch (error) {
     return {
       status: "error",
-      message: error instanceof Error ? error.message : "Booking failed.",
+      message: getSubmissionErrorMessage(error),
     };
   }
 

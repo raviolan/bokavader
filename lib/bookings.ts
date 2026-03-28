@@ -1,4 +1,4 @@
-import { BookingSlot, Prisma, WeatherSource } from "@prisma/client";
+import { Prisma, WeatherSource } from "@prisma/client";
 import {
   addDays,
   endOfMonth,
@@ -12,7 +12,8 @@ import {
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
-import { hasDatabaseUrl } from "@/lib/prisma";
+import { isDatabaseEnabled } from "@/lib/prisma";
+import { BOOKING_SLOTS, type BookingSlotValue } from "@/lib/booking-slot";
 import { MAX_CUSTOM_WEATHER_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
 
 export type CalendarDay = {
@@ -24,7 +25,7 @@ export type CalendarDay = {
 export type DayBooking = {
   id: string;
   date: string;
-  slot: BookingSlot;
+  slot: BookingSlotValue;
   weatherLabel: string;
   bookedBy: string;
 };
@@ -34,10 +35,18 @@ export type BookingFormState = {
   message?: string;
 };
 
+async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
+  try {
+    return await query();
+  } catch {
+    return fallback;
+  }
+}
+
 const bookingSchema = z
   .object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
-    slot: z.enum([BookingSlot.MORNING, BookingSlot.AFTERNOON, BookingSlot.FULL_DAY]),
+    slot: z.enum(BOOKING_SLOTS),
     bookedBy: z.string().trim().min(2, "Add a name.").max(32, "Keep names under 32 characters."),
     weatherMode: z.enum(["preset", "custom"]),
     weatherPreset: z.string().trim().optional(),
@@ -75,16 +84,20 @@ export async function getCalendarMonth(monthKey?: string) {
   const visibleStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const visibleEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
-  const bookings = hasDatabaseUrl
-    ? await prisma!.booking.findMany({
-        where: {
-          bookingDate: {
-            gte: visibleStart,
-            lte: visibleEnd,
-          },
-        },
-        orderBy: [{ bookingDate: "asc" }, { slot: "asc" }, { createdAt: "asc" }],
-      })
+  const bookings = isDatabaseEnabled
+    ? await findManySafely(
+        () =>
+          prisma!.booking.findMany({
+            where: {
+              bookingDate: {
+                gte: visibleStart,
+                lte: visibleEnd,
+              },
+            },
+            orderBy: [{ bookingDate: "asc" }, { slot: "asc" }, { createdAt: "asc" }],
+          }),
+        [],
+      )
     : [];
 
   const byDate = new Map<string, DayBooking[]>();
@@ -131,11 +144,15 @@ export async function getCalendarMonth(monthKey?: string) {
 export async function getDayBookings(isoDate: string) {
   const date = parseISO(isoDate);
 
-  const bookings = hasDatabaseUrl
-    ? await prisma!.booking.findMany({
-        where: { bookingDate: date },
-        orderBy: [{ slot: "asc" }, { createdAt: "asc" }],
-      })
+  const bookings = isDatabaseEnabled
+    ? await findManySafely(
+        () =>
+          prisma!.booking.findMany({
+            where: { bookingDate: date },
+            orderBy: [{ slot: "asc" }, { createdAt: "asc" }],
+          }),
+        [],
+      )
     : [];
 
   return bookings.map((booking) => ({
@@ -162,18 +179,23 @@ export function getWeatherPayload(formData: z.infer<typeof bookingSchema>) {
 }
 
 export function parseBookingForm(formData: FormData) {
+  const getStringOrUndefined = (key: string) => {
+    const value = formData.get(key);
+    return typeof value === "string" ? value : undefined;
+  };
+
   return bookingSchema.safeParse({
-    date: formData.get("date"),
-    slot: formData.get("slot"),
-    bookedBy: formData.get("bookedBy"),
-    weatherMode: formData.get("weatherMode"),
-    weatherPreset: formData.get("weatherPreset"),
-    customWeather: formData.get("customWeather"),
+    date: getStringOrUndefined("date"),
+    slot: getStringOrUndefined("slot"),
+    bookedBy: getStringOrUndefined("bookedBy"),
+    weatherMode: getStringOrUndefined("weatherMode"),
+    weatherPreset: getStringOrUndefined("weatherPreset"),
+    customWeather: getStringOrUndefined("customWeather"),
   });
 }
 
 export async function createBooking(input: z.infer<typeof bookingSchema>) {
-  if (!hasDatabaseUrl || !prisma) {
+  if (!isDatabaseEnabled || !prisma) {
     throw new Error("Set DATABASE_URL before creating shared bookings.");
   }
 
@@ -185,14 +207,14 @@ export async function createBooking(input: z.infer<typeof bookingSchema>) {
       where: { bookingDate },
     });
 
-    const hasFullDay = existing.some((booking) => booking.slot === BookingSlot.FULL_DAY);
+    const hasFullDay = existing.some((booking) => booking.slot === "FULL_DAY");
     const slotTaken = existing.some((booking) => booking.slot === input.slot);
 
-    if (input.slot === BookingSlot.FULL_DAY && existing.length > 0) {
+    if (input.slot === "FULL_DAY" && existing.length > 0) {
       throw new Error("This day already has a booking, so full day is unavailable.");
     }
 
-    if (input.slot !== BookingSlot.FULL_DAY && hasFullDay) {
+    if (input.slot !== "FULL_DAY" && hasFullDay) {
       throw new Error("This day is already booked for the full day.");
     }
 

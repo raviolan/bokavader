@@ -3,6 +3,7 @@ import { format, parseISO } from "date-fns";
 
 import type { CalendarDay } from "@/lib/bookings";
 import { getSlotLabel } from "@/lib/utils";
+import { WeatherIcon } from "@/components/weather-icon";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -29,6 +30,7 @@ export function CalendarGrid({ days, monthKey, selectedDate }: CalendarGridProps
 
           return (
             <Link
+              aria-current={isSelected ? "date" : undefined}
               className={[
                 "day-card",
                 day.inMonth ? "" : "muted",
@@ -40,13 +42,18 @@ export function CalendarGrid({ days, monthKey, selectedDate }: CalendarGridProps
               href={`/?month=${monthKey}&date=${day.isoDate}`}
               key={day.isoDate}
             >
-              <span className="day-number">{format(date, "d")}</span>
+              <div className="day-card-header">
+                <span className="day-number">{format(date, "d")}</span>
+              </div>
 
               {day.bookings.length > 0 ? (
                 <div className="booking-list">
                   {day.bookings.map((booking) => (
                     <div className="booking-chip" key={booking.id}>
-                      <strong>{booking.weatherLabel}</strong>
+                      <strong className="weather-label">
+                        <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
+                        <span>{booking.weatherLabel}</span>
+                      </strong>
                       {getSlotLabel(booking.slot)} by {booking.bookedBy}
                     </div>
                   ))}

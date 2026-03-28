@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
-import { BookingSlot } from "@prisma/client";
 
 import { submitBooking } from "@/app/actions";
 import type { BookingFormState, DayBooking } from "@/lib/bookings";
+import { BOOKING_SLOTS } from "@/lib/booking-slot";
 import { getSlotLabel } from "@/lib/utils";
 import { WEATHER_PRESETS } from "@/lib/weather";
 import { WeatherPicker } from "@/components/weather-picker";
+import { WeatherIcon } from "@/components/weather-icon";
 
 const initialState: BookingFormState = {
   status: "idle",
@@ -40,9 +41,9 @@ export function BookingForm({ databaseConfigured, dayBookings, monthKey, selecte
         <fieldset className="field">
           <legend>Slot</legend>
           <div className="slot-grid">
-            {[BookingSlot.MORNING, BookingSlot.AFTERNOON, BookingSlot.FULL_DAY].map((slot) => (
+            {BOOKING_SLOTS.map((slot) => (
               <div className="slot-option" key={slot}>
-                <input defaultChecked={slot === BookingSlot.FULL_DAY} id={slot} name="slot" type="radio" value={slot} />
+                <input defaultChecked={slot === "FULL_DAY"} id={slot} name="slot" type="radio" value={slot} />
                 <label htmlFor={slot}>{getSlotLabel(slot)}</label>
               </div>
             ))}
@@ -53,7 +54,11 @@ export function BookingForm({ databaseConfigured, dayBookings, monthKey, selecte
 
         {!databaseConfigured ? (
           <p className="status-message error" role="status">
-            Add `DATABASE_URL` to enable shared bookings.
+            Shared bookings are off for now. Add `DATABASE_URL` later and make sure `DISABLE_DATABASE` is not `true`.
+          </p>
+        ) : dayBookings.length === 0 ? (
+          <p className="status-message" role="status">
+            If bookings stay empty after setup, the database connection likely still needs adjustment.
           </p>
         ) : null}
 
@@ -72,8 +77,11 @@ export function BookingForm({ databaseConfigured, dayBookings, monthKey, selecte
         {dayBookings.length > 0 ? (
           dayBookings.map((booking) => (
             <div className="side-item" key={booking.id}>
-              <strong>
-                {getSlotLabel(booking.slot)}: {booking.weatherLabel}
+              <strong className="weather-label">
+                <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
+                <span>
+                  {getSlotLabel(booking.slot)}: {booking.weatherLabel}
+                </span>
               </strong>
               Reserved by {booking.bookedBy}
             </div>

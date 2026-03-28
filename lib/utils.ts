@@ -1,12 +1,12 @@
-import { BookingSlot } from "@prisma/client";
+import type { BookingSlotValue } from "@/lib/booking-slot";
 
-export function getSlotLabel(slot: BookingSlot) {
+export function getSlotLabel(slot: BookingSlotValue) {
   switch (slot) {
-    case BookingSlot.MORNING:
+    case "MORNING":
       return "Morning";
-    case BookingSlot.AFTERNOON:
+    case "AFTERNOON":
       return "Afternoon";
-    case BookingSlot.FULL_DAY:
+    case "FULL_DAY":
       return "Full day";
     default:
       return slot;

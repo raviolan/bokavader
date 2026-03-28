@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { BookingForm } from "@/components/booking-form";
 import { CalendarGrid } from "@/components/calendar-grid";
 import { getCalendarMonth, getDayBookings } from "@/lib/bookings";
-import { hasDatabaseUrl } from "@/lib/prisma";
+import { isDatabaseEnabled } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +58,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
         <aside className="panel booking-panel">
           <BookingForm
-            databaseConfigured={hasDatabaseUrl}
+            databaseConfigured={isDatabaseEnabled}
             dayBookings={dayBookings}
             monthKey={calendar.monthKey}
             selectedDate={selectedDate}

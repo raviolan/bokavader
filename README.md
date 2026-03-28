@@ -47,16 +47,31 @@ I recommend Supabase for the first deployment because it gives you a hosted Post
 
 Without `DATABASE_URL`, the app still renders so you can inspect the UI, but booking submissions stay disabled until a shared PostgreSQL database is configured.
 
+## Skip database for now
+
+If you want to continue building the UI without fighting database setup yet, set:
+
+```bash
+DISABLE_DATABASE=true
+```
+
+With `DISABLE_DATABASE=true`, the app stays in UI-only mode even if `DATABASE_URL` is present, so Prisma will not try to connect until you remove that flag later.
+
 ## Supabase setup
 
 1. Create a Supabase project.
-2. In Supabase, open the database connection details and copy the `Transaction pooler` URI.
+2. In Supabase, open the database connection details and copy:
+
+   - `Transaction pooler` URI for `DATABASE_URL`
+   - `Session pooler` URI for `DIRECT_URL`
 3. Put that exact URI into:
 
-   - local `.env` as `DATABASE_URL`
-   - Netlify environment variables as `DATABASE_URL`
+   - local `.env` as `DATABASE_URL` and `DIRECT_URL`
+   - Netlify environment variables as `DATABASE_URL` and `DIRECT_URL`
 
-4. Run:
+4. For Prisma with Supabase poolers, append `?pgbouncer=true&connection_limit=1` to `DATABASE_URL` if it is not already present.
+
+5. Run:
 
    ```bash
    npm run db:setup

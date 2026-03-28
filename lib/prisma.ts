@@ -6,6 +6,8 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 export const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+export const databaseDisabled = process.env.DISABLE_DATABASE === "true";
+export const isDatabaseEnabled = hasDatabaseUrl && !databaseDisabled;
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
@@ -21,7 +23,7 @@ function createPrismaClient() {
 }
 
 export const prisma =
-  hasDatabaseUrl ? globalForPrisma.prisma ?? createPrismaClient() : undefined;
+  isDatabaseEnabled ? globalForPrisma.prisma ?? createPrismaClient() : undefined;
 
 if (process.env.NODE_ENV !== "production" && prisma) {
   globalForPrisma.prisma = prisma;
