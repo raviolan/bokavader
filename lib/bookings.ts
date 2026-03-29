@@ -1,4 +1,4 @@
-import { Prisma, WeatherSource } from "@prisma/client";
+import { WeatherSource } from "@prisma/client";
 import {
   addDays,
   endOfMonth,
@@ -202,7 +202,7 @@ export async function createBooking(input: z.infer<typeof bookingSchema>) {
   const bookingDate = parseISO(input.date);
   const { weatherLabel, weatherSource } = getWeatherPayload(input);
 
-  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  return prisma.$transaction(async (tx) => {
     const existing = await tx.booking.findMany({
       where: { bookingDate },
     });
