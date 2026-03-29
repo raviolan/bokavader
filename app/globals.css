@@ -71,6 +71,13 @@ select {
   filter: blur(12px);
 }
 
+.hero-topbar {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .eyebrow {
   display: inline-flex;
   margin-bottom: 14px;
@@ -81,6 +88,35 @@ select {
   font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(28, 43, 45, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.language-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.language-button.active {
+  background: rgba(28, 43, 45, 0.9);
+  color: white;
 }
 
 .hero h1 {
@@ -240,9 +276,24 @@ select {
   gap: 8px;
 }
 
+.day-link {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .day-number {
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.day-link-text {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .booking-list {
@@ -266,6 +317,18 @@ select {
   font-size: 0.82rem;
 }
 
+.booking-chip-button,
+.side-item-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .weather-label {
   display: flex;
   align-items: center;
@@ -280,6 +343,10 @@ select {
   margin-top: 12px;
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.empty-note-link {
+  display: inline-block;
 }
 
 .selected-date {
@@ -359,6 +426,15 @@ select {
   font-weight: 700;
 }
 
+.secondary-button {
+  background: linear-gradient(135deg, rgba(32, 56, 61, 0.12), rgba(57, 88, 97, 0.2));
+  color: var(--ink);
+}
+
+.danger-button {
+  background: linear-gradient(135deg, #8c2f2b, #bb4d45);
+}
+
 .status-message {
   margin: 0;
   font-size: 0.92rem;
@@ -390,11 +466,107 @@ select {
   margin-bottom: 4px;
 }
 
+.side-item-button span {
+  display: block;
+}
+
 .hint {
   margin: 14px 0 0;
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.5;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: end center;
+  padding: 16px;
+  background: rgba(28, 43, 45, 0.38);
+}
+
+.modal-panel {
+  width: min(100%, 560px);
+  max-height: min(88vh, 860px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 28px;
+  background: var(--surface-strong);
+  box-shadow: var(--shadow);
+}
+
+.confirmation-panel {
+  width: min(100%, 480px);
+}
+
+.modal-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.modal-header h3 {
+  margin: 6px 0 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-size: 1.45rem;
+}
+
+.modal-close {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  padding: 10px 14px;
+}
+
+.modal-summary {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(28, 43, 45, 0.04);
+}
+
+.modal-summary p {
+  margin: 0;
+}
+
+.modal-summary p + p {
+  margin-top: 6px;
+}
+
+.modal-form {
+  margin-top: 16px;
+}
+
+.editor-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.delete-form {
+  display: grid;
+  gap: 12px;
+}
+
+.confirmation-dialog__body {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.confirmation-dialog__body h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-size: 1.45rem;
+}
+
+.confirmation-dialog__body p {
+  margin: 0;
 }
 
 @media (min-width: 768px) {
@@ -428,5 +600,18 @@ select {
 
   .mode-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .modal-backdrop {
+    place-items: center;
+    padding: 24px;
+  }
+
+  .modal-panel {
+    padding: 24px;
+  }
+
+  .confirmation-dialog__body {
+    margin-top: 18px;
   }
 }

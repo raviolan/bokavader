@@ -24,6 +24,7 @@ model Booking {
   weatherLabel  String
   weatherSource WeatherSource
   bookedBy      String
+  accessCodeHash String
   createdAt     DateTime      @default(now())
 
   @@unique([bookingDate, slot])

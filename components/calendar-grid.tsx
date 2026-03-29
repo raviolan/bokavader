@@ -1,23 +1,31 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 
+import { BookingDetailsModal } from "@/components/booking-details-modal";
 import type { CalendarDay } from "@/lib/bookings";
-import { getSlotLabel } from "@/lib/utils";
+import {
+  buildLocalizedHref,
+  getCalendarBookingLabel,
+  getCopy,
+  translateWeatherLabel,
+  type SiteLanguage,
+} from "@/lib/i18n";
 import { WeatherIcon } from "@/components/weather-icon";
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 type CalendarGridProps = {
   days: CalendarDay[];
+  language: SiteLanguage;
   monthKey: string;
   selectedDate: string;
 };
 
-export function CalendarGrid({ days, monthKey, selectedDate }: CalendarGridProps) {
+export function CalendarGrid({ days, language, monthKey, selectedDate }: CalendarGridProps) {
+  const strings = getCopy(language);
+
   return (
     <>
       <div className="weekday-row">
-        {WEEKDAYS.map((day) => (
+        {strings.weekdays.map((day) => (
           <div className="weekday" key={day}>
             {day}
           </div>
@@ -29,8 +37,7 @@ export function CalendarGrid({ days, monthKey, selectedDate }: CalendarGridProps
           const isSelected = day.isoDate === selectedDate;
 
           return (
-            <Link
-              aria-current={isSelected ? "date" : undefined}
+            <div
               className={[
                 "day-card",
                 day.inMonth ? "" : "muted",
@@ -39,29 +46,43 @@ export function CalendarGrid({ days, monthKey, selectedDate }: CalendarGridProps
               ]
                 .filter(Boolean)
                 .join(" ")}
-              href={`/?month=${monthKey}&date=${day.isoDate}`}
               key={day.isoDate}
             >
               <div className="day-card-header">
-                <span className="day-number">{format(date, "d")}</span>
+                <Link
+                  aria-current={isSelected ? "date" : undefined}
+                  className="day-link"
+                  href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}
+                >
+                  <span className="day-number">{format(date, "d")}</span>
+                  <span className="day-link-text">{isSelected ? strings.selectedDay : strings.inspectDay}</span>
+                </Link>
               </div>
 
               {day.bookings.length > 0 ? (
                 <div className="booking-list">
                   {day.bookings.map((booking) => (
-                    <div className="booking-chip" key={booking.id}>
+                    <BookingDetailsModal
+                      booking={booking}
+                      key={booking.id}
+                      language={language}
+                      monthKey={monthKey}
+                      triggerClassName="booking-chip booking-chip-button"
+                    >
                       <strong className="weather-label">
                         <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
-                        <span>{booking.weatherLabel}</span>
+                        <span>{translateWeatherLabel(booking.weatherLabel, language)}</span>
                       </strong>
-                      {getSlotLabel(booking.slot)} by {booking.bookedBy}
-                    </div>
+                      <span>{getCalendarBookingLabel(booking.slot, booking.bookedBy, language)}</span>
+                    </BookingDetailsModal>
                   ))}
                 </div>
               ) : (
-                <div className="empty-note">Open for weather booking</div>
+                <Link className="empty-note empty-note-link" href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}>
+                  {strings.availableBooking}
+                </Link>
               )}
-            </Link>
+            </div>
           );
         })}
       </div>

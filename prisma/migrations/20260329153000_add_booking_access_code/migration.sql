@@ -1,0 +1,2 @@
+ALTER TABLE "Booking"
+ADD COLUMN "accessCodeHash" TEXT NOT NULL DEFAULT '';

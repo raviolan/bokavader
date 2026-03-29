@@ -1,4 +1,5 @@
-import { WeatherSource } from "@prisma/client";
+import { createHash, randomInt } from "node:crypto";
+import { Prisma, WeatherSource } from "@prisma/client";
 import {
   addDays,
   endOfMonth,
@@ -13,6 +14,8 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { isDatabaseEnabled } from "@/lib/prisma";
+import { formatDatabaseDateToIso, parseIsoDateToDatabaseDate } from "@/lib/date";
+import { capitalizeFirstLetter, getCopy, type SiteLanguage } from "@/lib/i18n";
 import { BOOKING_SLOTS, type BookingSlotValue } from "@/lib/booking-slot";
 import { MAX_CUSTOM_WEATHER_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
 
@@ -27,12 +30,20 @@ export type DayBooking = {
   date: string;
   slot: BookingSlotValue;
   weatherLabel: string;
+  weatherSource: WeatherSource;
   bookedBy: string;
 };
 
 export type BookingFormState = {
   status: "idle" | "error" | "success";
   message?: string;
+  accessCode?: string;
+};
+
+export type BookingAccessState = {
+  status: "idle" | "error" | "success";
+  message?: string;
+  verifiedCode?: string;
 };
 
 async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
@@ -43,46 +54,67 @@ async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
   }
 }
 
-const bookingSchema = z
-  .object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
-    slot: z.enum(BOOKING_SLOTS),
-    bookedBy: z.string().trim().min(2, "Add a name.").max(32, "Keep names under 32 characters."),
-    weatherMode: z.enum(["preset", "custom"]),
-    weatherPreset: z.string().trim().optional(),
-    customWeather: z
-      .string()
-      .trim()
-      .max(
-        MAX_CUSTOM_WEATHER_LENGTH,
-        `Custom weather must be under ${MAX_CUSTOM_WEATHER_LENGTH} characters.`,
-      )
-      .optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.weatherMode === "preset" && !WEATHER_PRESETS.includes(value.weatherPreset as never)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Choose a listed weather type.",
-        path: ["weatherPreset"],
-      });
-    }
+function getBookingCodeSchema(language: SiteLanguage) {
+  const strings = getCopy(language);
 
-    if (value.weatherMode === "custom" && !value.customWeather) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Add a custom weather label.",
-        path: ["customWeather"],
-      });
-    }
+  return z.object({
+    bookingId: z.string().trim().min(1, strings.invalidBooking),
+    accessCode: z.string().regex(/^\d{5}$/, strings.invalidCode),
   });
+}
 
-export async function getCalendarMonth(monthKey?: string) {
+function getBookingSchema(language: SiteLanguage) {
+  const strings = getCopy(language);
+
+  return z
+    .object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, strings.chooseDate),
+      slot: z.enum(BOOKING_SLOTS),
+      bookedBy: z
+        .string()
+        .trim()
+        .min(2, strings.addName)
+        .max(32, strings.longName),
+      weatherMode: z.enum(["preset", "custom"]),
+      weatherPreset: z.string().trim().optional(),
+      customWeather: z.string().trim().max(MAX_CUSTOM_WEATHER_LENGTH, strings.longCustomWeather).optional(),
+    })
+    .superRefine((value, ctx) => {
+      if (value.bookedBy.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: strings.shortName,
+          path: ["bookedBy"],
+        });
+      }
+
+      if (value.weatherMode === "preset" && !WEATHER_PRESETS.includes(value.weatherPreset as never)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: strings.chooseListedWeather,
+          path: ["weatherPreset"],
+        });
+      }
+
+      if (value.weatherMode === "custom" && !value.customWeather) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: strings.addCustomWeather,
+          path: ["customWeather"],
+        });
+      }
+    });
+}
+
+export async function getCalendarMonth(monthKey: string | undefined, language: SiteLanguage) {
+  const strings = getCopy(language);
   const month = monthKey && /^\d{4}-\d{2}$/.test(monthKey) ? parseISO(`${monthKey}-01`) : new Date();
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
   const visibleStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const visibleEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const visibleStartDate = parseIsoDateToDatabaseDate(format(visibleStart, "yyyy-MM-dd"));
+  const visibleEndDate = parseIsoDateToDatabaseDate(format(visibleEnd, "yyyy-MM-dd"));
 
   const bookings = isDatabaseEnabled
     ? await findManySafely(
@@ -90,8 +122,8 @@ export async function getCalendarMonth(monthKey?: string) {
           prisma!.booking.findMany({
             where: {
               bookingDate: {
-                gte: visibleStart,
-                lte: visibleEnd,
+                gte: visibleStartDate,
+                lte: visibleEndDate,
               },
             },
             orderBy: [{ bookingDate: "asc" }, { slot: "asc" }, { createdAt: "asc" }],
@@ -103,7 +135,7 @@ export async function getCalendarMonth(monthKey?: string) {
   const byDate = new Map<string, DayBooking[]>();
 
   for (const booking of bookings) {
-    const date = format(booking.bookingDate, "yyyy-MM-dd");
+    const date = formatDatabaseDateToIso(booking.bookingDate);
     const next = byDate.get(date) ?? [];
 
     next.push({
@@ -111,6 +143,7 @@ export async function getCalendarMonth(monthKey?: string) {
       date,
       slot: booking.slot,
       weatherLabel: booking.weatherLabel,
+      weatherSource: booking.weatherSource,
       bookedBy: booking.bookedBy,
     });
 
@@ -133,7 +166,7 @@ export async function getCalendarMonth(monthKey?: string) {
 
   return {
     currentMonth: monthStart,
-    monthLabel: format(monthStart, "MMMM yyyy"),
+    monthLabel: capitalizeFirstLetter(format(monthStart, "MMMM yyyy", { locale: strings.locale })),
     monthKey: format(monthStart, "yyyy-MM"),
     prevMonthKey: format(addDays(monthStart, -1), "yyyy-MM"),
     nextMonthKey: format(addDays(monthEnd, 1), "yyyy-MM"),
@@ -142,7 +175,7 @@ export async function getCalendarMonth(monthKey?: string) {
 }
 
 export async function getDayBookings(isoDate: string) {
-  const date = parseISO(isoDate);
+  const date = parseIsoDateToDatabaseDate(isoDate);
 
   const bookings = isDatabaseEnabled
     ? await findManySafely(
@@ -160,11 +193,16 @@ export async function getDayBookings(isoDate: string) {
     date: isoDate,
     slot: booking.slot,
     weatherLabel: booking.weatherLabel,
+    weatherSource: booking.weatherSource,
     bookedBy: booking.bookedBy,
   }));
 }
 
-export function getWeatherPayload(formData: z.infer<typeof bookingSchema>) {
+export function getWeatherPayload(formData: {
+  weatherMode: "preset" | "custom";
+  weatherPreset?: string;
+  customWeather?: string;
+}) {
   if (formData.weatherMode === "custom") {
     return {
       weatherLabel: formData.customWeather!,
@@ -178,13 +216,13 @@ export function getWeatherPayload(formData: z.infer<typeof bookingSchema>) {
   };
 }
 
-export function parseBookingForm(formData: FormData) {
+export function parseBookingForm(formData: FormData, language: SiteLanguage) {
   const getStringOrUndefined = (key: string) => {
     const value = formData.get(key);
     return typeof value === "string" ? value : undefined;
   };
 
-  return bookingSchema.safeParse({
+  return getBookingSchema(language).safeParse({
     date: getStringOrUndefined("date"),
     slot: getStringOrUndefined("slot"),
     bookedBy: getStringOrUndefined("bookedBy"),
@@ -194,15 +232,72 @@ export function parseBookingForm(formData: FormData) {
   });
 }
 
-export async function createBooking(input: z.infer<typeof bookingSchema>) {
-  if (!isDatabaseEnabled || !prisma) {
-    throw new Error("Set DATABASE_URL before creating shared bookings.");
+export function parseBookingAccessForm(formData: FormData, language: SiteLanguage) {
+  const getStringOrUndefined = (key: string) => {
+    const value = formData.get(key);
+    return typeof value === "string" ? value : undefined;
+  };
+
+  return getBookingCodeSchema(language).safeParse({
+    bookingId: getStringOrUndefined("bookingId"),
+    accessCode: getStringOrUndefined("accessCode"),
+  });
+}
+
+function hashAccessCode(accessCode: string) {
+  return createHash("sha256").update(accessCode).digest("hex");
+}
+
+function generateAccessCode() {
+  return String(randomInt(10000, 100000));
+}
+
+async function verifyBookingAccessCode(
+  tx: Prisma.TransactionClient,
+  bookingId: string,
+  accessCode: string,
+  language: SiteLanguage,
+) {
+  const strings = getCopy(language);
+  const booking = await tx.booking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      accessCodeHash: true,
+    },
+  });
+
+  if (!booking) {
+    throw new Error(strings.bookingMissing);
   }
 
-  const bookingDate = parseISO(input.date);
-  const { weatherLabel, weatherSource } = getWeatherPayload(input);
+  if (booking.accessCodeHash !== hashAccessCode(accessCode)) {
+    throw new Error(strings.codeMismatch);
+  }
+}
+
+export async function verifyBookingAccess(access: z.infer<ReturnType<typeof getBookingCodeSchema>>, language: SiteLanguage) {
+  const strings = getCopy(language);
+  if (!isDatabaseEnabled || !prisma) {
+    throw new Error(strings.setupBeforeChange);
+  }
 
   return prisma.$transaction(async (tx) => {
+    await verifyBookingAccessCode(tx, access.bookingId, access.accessCode, language);
+  });
+}
+
+export async function createBooking(input: z.infer<ReturnType<typeof getBookingSchema>>, language: SiteLanguage) {
+  const strings = getCopy(language);
+  if (!isDatabaseEnabled || !prisma) {
+    throw new Error(strings.setupBeforeCreate);
+  }
+
+  const bookingDate = parseIsoDateToDatabaseDate(input.date);
+  const { weatherLabel, weatherSource } = getWeatherPayload(input);
+  const accessCode = generateAccessCode();
+
+  const booking = await prisma.$transaction(async (tx) => {
     const existing = await tx.booking.findMany({
       where: { bookingDate },
     });
@@ -211,15 +306,15 @@ export async function createBooking(input: z.infer<typeof bookingSchema>) {
     const slotTaken = existing.some((booking) => booking.slot === input.slot);
 
     if (input.slot === "FULL_DAY" && existing.length > 0) {
-      throw new Error("This day already has a booking, so full day is unavailable.");
+      throw new Error(strings.fullDayUnavailable);
     }
 
     if (input.slot !== "FULL_DAY" && hasFullDay) {
-      throw new Error("This day is already booked for the full day.");
+      throw new Error(strings.fullDayTaken);
     }
 
     if (slotTaken) {
-      throw new Error("That slot is already booked.");
+      throw new Error(strings.slotTaken);
     }
 
     return tx.booking.create({
@@ -229,6 +324,84 @@ export async function createBooking(input: z.infer<typeof bookingSchema>) {
         weatherLabel,
         weatherSource,
         bookedBy: input.bookedBy,
+        accessCodeHash: hashAccessCode(accessCode),
+      },
+    });
+  });
+
+  return {
+    booking,
+    accessCode,
+  };
+}
+
+export async function updateBooking(
+  access: z.infer<ReturnType<typeof getBookingCodeSchema>>,
+  input: z.infer<ReturnType<typeof getBookingSchema>>,
+  language: SiteLanguage,
+) {
+  const strings = getCopy(language);
+  if (!isDatabaseEnabled || !prisma) {
+    throw new Error(strings.setupBeforeChange);
+  }
+
+  const bookingDate = parseIsoDateToDatabaseDate(input.date);
+  const { weatherLabel, weatherSource } = getWeatherPayload(input);
+
+  return prisma.$transaction(async (tx) => {
+    await verifyBookingAccessCode(tx, access.bookingId, access.accessCode, language);
+
+    const existing = await tx.booking.findMany({
+      where: {
+        bookingDate,
+        NOT: {
+          id: access.bookingId,
+        },
+      },
+    });
+
+    const hasFullDay = existing.some((booking) => booking.slot === "FULL_DAY");
+    const slotTaken = existing.some((booking) => booking.slot === input.slot);
+
+    if (input.slot === "FULL_DAY" && existing.length > 0) {
+      throw new Error(strings.fullDayUnavailable);
+    }
+
+    if (input.slot !== "FULL_DAY" && hasFullDay) {
+      throw new Error(strings.fullDayTaken);
+    }
+
+    if (slotTaken) {
+      throw new Error(strings.slotTaken);
+    }
+
+    return tx.booking.update({
+      where: {
+        id: access.bookingId,
+      },
+      data: {
+        bookingDate,
+        slot: input.slot,
+        weatherLabel,
+        weatherSource,
+        bookedBy: input.bookedBy,
+      },
+    });
+  });
+}
+
+export async function deleteBooking(access: z.infer<ReturnType<typeof getBookingCodeSchema>>, language: SiteLanguage) {
+  const strings = getCopy(language);
+  if (!isDatabaseEnabled || !prisma) {
+    throw new Error(strings.setupBeforeDelete);
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await verifyBookingAccessCode(tx, access.bookingId, access.accessCode, language);
+
+    await tx.booking.delete({
+      where: {
+        id: access.bookingId,
       },
     });
   });
