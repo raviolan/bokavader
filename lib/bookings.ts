@@ -67,12 +67,17 @@ async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
 }
 
 function getBookingAdminCode() {
-  const value = process.env.BOOKING_ADMIN_CODE?.trim();
-  return value ? value : null;
+  const value = process.env.BOOKING_ADMIN_CODE;
+  const normalized = value ? normalizeAdminCode(value) : "";
+  return normalized ? normalized : null;
 }
 
 function normalizeAdminCode(value: string) {
-  return value.trim().toUpperCase();
+  return value
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .replace(/[\s-]+/g, "")
+    .toUpperCase();
 }
 
 function getBookingCodeSchema(language: SiteLanguage) {
@@ -301,7 +306,7 @@ function hashAccessCode(accessCode: string) {
 }
 
 function createAdminAccessToken(bookingId: string, adminCode: string) {
-  return `admin:${createHmac("sha256", normalizeAdminCode(adminCode)).update(bookingId).digest("hex")}`;
+  return `admin:${createHmac("sha256", adminCode).update(bookingId).digest("hex")}`;
 }
 
 function isAdminAccessToken(accessCode: string) {
@@ -334,7 +339,7 @@ async function verifyBookingAccessCode(
     throw new Error(strings.bookingMissing);
   }
 
-  if (adminCode && normalizedAdminInput === normalizeAdminCode(adminCode)) {
+  if (adminCode && normalizedAdminInput === adminCode) {
     return {
       verifiedCode: createAdminAccessToken(bookingId, adminCode),
     };
