@@ -352,12 +352,14 @@ textarea {
   background: rgba(28, 43, 45, 0.06);
   font-size: 0.78rem;
   line-height: 1.35;
+  overflow: hidden;
 }
 
 .booking-chip strong {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 0.82rem;
 }
 
@@ -377,6 +379,16 @@ textarea {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+
+.weather-label span,
+.booking-chip-button > span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .weather-icon {

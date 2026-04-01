@@ -36,9 +36,9 @@ export function getWeatherTone(weatherLabel: string, weatherSource: "PRESET" | "
       };
     case "rainy":
       return {
-        stripe: "rgba(91, 124, 153, 0.22)",
-        surface: "rgba(240, 246, 251, 0.98)",
-        border: "rgba(91, 124, 153, 0.38)",
+        stripe: "rgba(64, 122, 196, 0.28)",
+        surface: "rgba(233, 243, 255, 0.98)",
+        border: "rgba(64, 122, 196, 0.42)",
       };
     case "snowy":
       return {
@@ -54,9 +54,9 @@ export function getWeatherTone(weatherLabel: string, weatherSource: "PRESET" | "
       };
     case "stormy":
       return {
-        stripe: "rgba(78, 89, 110, 0.26)",
-        surface: "rgba(239, 242, 247, 0.98)",
-        border: "rgba(78, 89, 110, 0.42)",
+        stripe: "rgba(47, 61, 98, 0.34)",
+        surface: "rgba(231, 236, 247, 0.98)",
+        border: "rgba(47, 61, 98, 0.5)",
       };
     case "windy":
       return {

@@ -80,6 +80,7 @@ export function CalendarGrid({ days, language, monthKey, selectedDate }: Calenda
                   aria-current={isSelected ? "date" : undefined}
                   className="day-link"
                   href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}
+                  scroll={false}
                 >
                   <span className="day-number">{format(date, "d")}</span>
                   <span className="day-link-text">{isSelected ? strings.selectedDay : strings.inspectDay}</span>
@@ -105,7 +106,11 @@ export function CalendarGrid({ days, language, monthKey, selectedDate }: Calenda
                   ))}
                 </div>
               ) : (
-                <Link className="empty-note empty-note-link" href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}>
+                <Link
+                  className="empty-note empty-note-link"
+                  href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}
+                  scroll={false}
+                >
                   {strings.availableBooking}
                 </Link>
               )}

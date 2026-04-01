@@ -27,6 +27,12 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
   const strings = getCopy(language);
   const [state, formAction, pending] = useActionState(submitBooking, initialState);
   const [dismissedAccessCode, setDismissedAccessCode] = useState<string | null>(null);
+  const [bookedBy, setBookedBy] = useState("");
+  const [slot, setSlot] = useState<(typeof BOOKING_SLOTS)[number]>("FULL_DAY");
+  const [weatherMode, setWeatherMode] = useState<"preset" | "custom">("preset");
+  const [weatherPreset, setWeatherPreset] = useState<string>(WEATHER_PRESETS[0]);
+  const [customWeather, setCustomWeather] = useState("");
+  const [occasion, setOccasion] = useState("");
   const showConfirmationDialog =
     state.status === "success" && Boolean(state.accessCode) && dismissedAccessCode !== state.accessCode;
 
@@ -61,22 +67,45 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
 
         <div className="field">
           <label htmlFor="bookedBy">{strings.name}</label>
-          <input id="bookedBy" maxLength={32} name="bookedBy" placeholder={strings.namePlaceholder} />
+          <input
+            id="bookedBy"
+            maxLength={32}
+            name="bookedBy"
+            onChange={(event) => setBookedBy(event.target.value)}
+            placeholder={strings.namePlaceholder}
+            value={bookedBy}
+          />
         </div>
 
         <fieldset className="field">
           <legend>{strings.slot}</legend>
           <div className="slot-grid">
-            {BOOKING_SLOTS.map((slot) => (
-              <div className="slot-option" key={slot}>
-                <input defaultChecked={slot === "FULL_DAY"} id={slot} name="slot" type="radio" value={slot} />
-                <label htmlFor={slot}>{getSlotLabel(slot, language)}</label>
+            {BOOKING_SLOTS.map((slotValue) => (
+              <div className="slot-option" key={slotValue}>
+                <input
+                  checked={slot === slotValue}
+                  id={slotValue}
+                  name="slot"
+                  onChange={() => setSlot(slotValue)}
+                  type="radio"
+                  value={slotValue}
+                />
+                <label htmlFor={slotValue}>{getSlotLabel(slotValue, language)}</label>
               </div>
             ))}
           </div>
         </fieldset>
 
-        <WeatherPicker defaultPreset={WEATHER_PRESETS[0]} language={language} />
+        <WeatherPicker
+          customWeatherValue={customWeather}
+          defaultPreset={WEATHER_PRESETS[0]}
+          language={language}
+          mode={weatherMode}
+          onCustomWeatherChange={setCustomWeather}
+          onModeChange={setWeatherMode}
+          onPresetChange={setWeatherPreset}
+          presetValue={weatherPreset}
+        />
 
         <div className="field">
           <label htmlFor="occasion">{strings.occasion}</label>
@@ -84,8 +113,10 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
             id="occasion"
             maxLength={280}
             name="occasion"
+            onChange={(event) => setOccasion(event.target.value)}
             placeholder={strings.occasionPlaceholder}
             rows={5}
+            value={occasion}
           />
           <p className="field-hint">{strings.occasionOptional}</p>
         </div>

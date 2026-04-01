@@ -38,12 +38,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <Link
               className={`language-button ${language === "sv" ? "active" : ""}`}
               href={buildLocalizedHref("sv", { date: selectedDate, month: calendar.monthKey, lang: "sv" })}
+              scroll={false}
             >
               SV
             </Link>
             <Link
               className={`language-button ${language === "en" ? "active" : ""}`}
               href={buildLocalizedHref("en", { date: selectedDate, month: calendar.monthKey, lang: "en" })}
+              scroll={false}
             >
               EN
             </Link>
@@ -65,6 +67,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 aria-label={strings.previousMonth}
                 className="nav-button"
                 href={buildLocalizedHref(language, { month: calendar.prevMonthKey, date: selectedDate })}
+                scroll={false}
               >
                 <ChevronLeft size={18} />
               </Link>
@@ -72,6 +75,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 aria-label={strings.nextMonth}
                 className="nav-button"
                 href={buildLocalizedHref(language, { month: calendar.nextMonthKey, date: selectedDate })}
+                scroll={false}
               >
                 <ChevronRight size={18} />
               </Link>

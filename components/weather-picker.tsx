@@ -10,6 +10,12 @@ type WeatherPickerProps = {
   initialMode?: "preset" | "custom";
   initialCustomWeather?: string;
   language: SiteLanguage;
+  mode?: "preset" | "custom";
+  presetValue?: string;
+  customWeatherValue?: string;
+  onModeChange?: (mode: "preset" | "custom") => void;
+  onPresetChange?: (preset: string) => void;
+  onCustomWeatherChange?: (customWeather: string) => void;
 };
 
 export function WeatherPicker({
@@ -17,14 +23,31 @@ export function WeatherPicker({
   initialMode = "preset",
   initialCustomWeather = "",
   language,
+  mode: controlledMode,
+  presetValue,
+  customWeatherValue,
+  onModeChange,
+  onPresetChange,
+  onCustomWeatherChange,
 }: WeatherPickerProps) {
   const strings = getCopy(language);
-  const [mode, setMode] = useState<"preset" | "custom">(initialMode);
+  const [uncontrolledMode, setUncontrolledMode] = useState<"preset" | "custom">(initialMode);
   const inputId = useId();
   const presetId = `${inputId}-weather-mode-preset`;
   const customId = `${inputId}-weather-mode-custom`;
   const presetSelectId = `${inputId}-weather-preset`;
   const customInputId = `${inputId}-custom-weather`;
+  const mode = controlledMode ?? uncontrolledMode;
+  const resolvedPresetValue = presetValue ?? defaultPreset;
+  const resolvedCustomWeatherValue = customWeatherValue ?? initialCustomWeather;
+
+  function handleModeChange(nextMode: "preset" | "custom") {
+    if (controlledMode === undefined) {
+      setUncontrolledMode(nextMode);
+    }
+
+    onModeChange?.(nextMode);
+  }
 
   return (
     <>
@@ -36,7 +59,7 @@ export function WeatherPicker({
               checked={mode === "preset"}
               id={presetId}
               name="weatherMode"
-              onChange={() => setMode("preset")}
+              onChange={() => handleModeChange("preset")}
               type="radio"
               value="preset"
             />
@@ -47,7 +70,7 @@ export function WeatherPicker({
               checked={mode === "custom"}
               id={customId}
               name="weatherMode"
-              onChange={() => setMode("custom")}
+              onChange={() => handleModeChange("custom")}
               type="radio"
               value="custom"
             />
@@ -58,7 +81,13 @@ export function WeatherPicker({
 
       <div className="field">
         <label htmlFor={presetSelectId}>{strings.presetWeather}</label>
-        <select defaultValue={defaultPreset} disabled={mode !== "preset"} id={presetSelectId} name="weatherPreset">
+        <select
+          disabled={mode !== "preset"}
+          id={presetSelectId}
+          name="weatherPreset"
+          onChange={(event) => onPresetChange?.(event.target.value)}
+          value={resolvedPresetValue}
+        >
           {WEATHER_PRESETS.map((preset) => (
             <option key={preset} value={preset}>
               {translateWeatherLabel(preset, language)}
@@ -71,12 +100,13 @@ export function WeatherPicker({
         <div className="field">
           <label htmlFor={customInputId}>{strings.customWeather}</label>
           <input
-            defaultValue={initialCustomWeather}
             id={customInputId}
             maxLength={32}
             name="customWeather"
+            onChange={(event) => onCustomWeatherChange?.(event.target.value)}
             placeholder={strings.customPlaceholder}
             type="text"
+            value={resolvedCustomWeatherValue}
           />
         </div>
       ) : null}
