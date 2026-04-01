@@ -2,6 +2,8 @@
 
 A playful booking app where anyone can reserve a weather type for a day, morning, or afternoon. Bookings are public and conflict-safe: once claimed, a slot cannot be overridden.
 
+The app is location-aware. Each calendar is scoped to a selected country, region, or city, and broader bookings cascade down into narrower calendars.
+
 ## Stack
 
 - Next.js App Router
@@ -90,8 +92,16 @@ It is the one private Postgres connection string that points both your local app
 - A `FULL_DAY` booking blocks the entire date.
 - `MORNING` and `AFTERNOON` can both exist on the same date.
 - A taken slot cannot be overwritten.
+- Bookings are scoped to a normalized location.
+- Broader bookings such as `Sweden` appear in narrower calendars such as `Skane` or `Gothenburg`.
 - Weather can be chosen from presets or entered as custom text.
 - Bookings can optionally include a longer occasion note that is shown with the saved booking.
+
+## Location search
+
+- The header location picker uses a server-side proxy to the public Photon geocoding demo service.
+- Search is limited to country, region, and city-like results so the app does not create street-level calendars.
+- The selected location is kept in the URL and persisted locally in the browser.
 
 ## Netlify notes
 

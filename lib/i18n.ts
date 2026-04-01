@@ -12,7 +12,9 @@ export function parseLanguage(value?: string): SiteLanguage {
 
 export function buildLocalizedHref(
   language: SiteLanguage,
-  params: Partial<Record<"month" | "date" | "lang", string | undefined>>,
+  params: Partial<
+    Record<"month" | "date" | "lang" | "locationKey" | "locationLabel" | "locationPath" | "locationScope", string | undefined>
+  >,
 ) {
   const query: Record<string, string> = {};
 
@@ -22,6 +24,22 @@ export function buildLocalizedHref(
 
   if (params.date) {
     query.date = params.date;
+  }
+
+  if (params.locationKey) {
+    query.locationKey = params.locationKey;
+  }
+
+  if (params.locationLabel) {
+    query.locationLabel = params.locationLabel;
+  }
+
+  if (params.locationPath) {
+    query.locationPath = params.locationPath;
+  }
+
+  if (params.locationScope) {
+    query.locationScope = params.locationScope;
   }
 
   query.lang = params.lang ?? language;
@@ -36,6 +54,15 @@ const copy = {
   sv: {
     locale: sv,
     languageLabel: "Språk",
+    locationLabel: "Plats",
+    locationPlaceholder: "Sök stad, region eller land",
+    locationSearchHint: "Städer är minsta nivån. Regioner och länder går också bra.",
+    locationSearchEmpty: "Skriv minst två tecken för att söka plats.",
+    locationSearching: "Söker platser...",
+    locationNoResults: "Inga platser hittades.",
+    locationReset: "Återgå till Göteborg",
+    showingCalendarFor: (location: string) => `Visar bokningar för ${location}`,
+    broaderBooking: (location: string) => `Gäller för ${location}`,
     swedish: "Svenska",
     english: "English",
     eyebrow: "Öppen bokningstavla",
@@ -127,6 +154,15 @@ const copy = {
   en: {
     locale: enUS,
     languageLabel: "Language",
+    locationLabel: "Location",
+    locationPlaceholder: "Search for a city, region, or country",
+    locationSearchHint: "Cities are the smallest option. Regions and countries work too.",
+    locationSearchEmpty: "Type at least two characters to search for a place.",
+    locationSearching: "Searching places...",
+    locationNoResults: "No places found.",
+    locationReset: "Back to Gothenburg",
+    showingCalendarFor: (location: string) => `Showing bookings for ${location}`,
+    broaderBooking: (location: string) => `Applies to ${location}`,
     swedish: "Svenska",
     english: "English",
     eyebrow: "Shared public booking board",

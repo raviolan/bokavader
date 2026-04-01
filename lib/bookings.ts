@@ -16,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { isDatabaseEnabled } from "@/lib/prisma";
 import { formatDatabaseDateToIso, parseIsoDateToDatabaseDate } from "@/lib/date";
 import { capitalizeFirstLetter, getCopy, type SiteLanguage } from "@/lib/i18n";
+import { parseLocationPath, type SelectedLocation } from "@/lib/location";
 import { BOOKING_SLOTS, type BookingSlotValue } from "@/lib/booking-slot";
 import { MAX_CUSTOM_WEATHER_LENGTH, MAX_OCCASION_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
 
@@ -28,6 +29,10 @@ export type CalendarDay = {
 export type DayBooking = {
   id: string;
   date: string;
+  locationKey: string;
+  locationLabel: string;
+  locationPath: string[];
+  locationScope: string;
   slot: BookingSlotValue;
   weatherLabel: string;
   weatherSource: WeatherSource;
@@ -80,6 +85,10 @@ function getBookingSchema(language: SiteLanguage) {
       weatherPreset: z.string().trim().optional(),
       customWeather: z.string().trim().max(MAX_CUSTOM_WEATHER_LENGTH, strings.longCustomWeather).optional(),
       occasion: z.string().trim().max(MAX_OCCASION_LENGTH, strings.longOccasion).optional(),
+      locationKey: z.string().trim().min(1, strings.invalidBooking),
+      locationLabel: z.string().trim().min(1, strings.invalidBooking),
+      locationScope: z.string().trim().min(1, strings.invalidBooking),
+      locationPath: z.string().trim().min(1, strings.invalidBooking),
     })
     .superRefine((value, ctx) => {
       if (value.bookedBy.trim().length < 2) {
@@ -108,7 +117,11 @@ function getBookingSchema(language: SiteLanguage) {
     });
 }
 
-export async function getCalendarMonth(monthKey: string | undefined, language: SiteLanguage) {
+export async function getCalendarMonth(
+  monthKey: string | undefined,
+  language: SiteLanguage,
+  location: SelectedLocation,
+) {
   const strings = getCopy(language);
   const month = monthKey && /^\d{4}-\d{2}$/.test(monthKey) ? parseISO(`${monthKey}-01`) : new Date();
   const monthStart = startOfMonth(month);
@@ -127,6 +140,9 @@ export async function getCalendarMonth(monthKey: string | undefined, language: S
                 gte: visibleStartDate,
                 lte: visibleEndDate,
               },
+              locationKey: {
+                in: location.path,
+              },
             },
             orderBy: [{ bookingDate: "asc" }, { slot: "asc" }, { createdAt: "asc" }],
           }),
@@ -143,6 +159,10 @@ export async function getCalendarMonth(monthKey: string | undefined, language: S
     next.push({
       id: booking.id,
       date,
+      locationKey: booking.locationKey,
+      locationLabel: booking.locationLabel,
+      locationPath: booking.locationPath,
+      locationScope: booking.locationScope,
       slot: booking.slot,
       weatherLabel: booking.weatherLabel,
       weatherSource: booking.weatherSource,
@@ -177,14 +197,19 @@ export async function getCalendarMonth(monthKey: string | undefined, language: S
   };
 }
 
-export async function getDayBookings(isoDate: string) {
+export async function getDayBookings(isoDate: string, location: SelectedLocation) {
   const date = parseIsoDateToDatabaseDate(isoDate);
 
   const bookings = isDatabaseEnabled
     ? await findManySafely(
         () =>
           prisma!.booking.findMany({
-            where: { bookingDate: date },
+            where: {
+              bookingDate: date,
+              locationKey: {
+                in: location.path,
+              },
+            },
             orderBy: [{ slot: "asc" }, { createdAt: "asc" }],
           }),
         [],
@@ -194,6 +219,10 @@ export async function getDayBookings(isoDate: string) {
   return bookings.map((booking) => ({
     id: booking.id,
     date: isoDate,
+    locationKey: booking.locationKey,
+    locationLabel: booking.locationLabel,
+    locationPath: booking.locationPath,
+    locationScope: booking.locationScope,
     slot: booking.slot,
     weatherLabel: booking.weatherLabel,
     weatherSource: booking.weatherSource,
@@ -234,6 +263,10 @@ export function parseBookingForm(formData: FormData, language: SiteLanguage) {
     weatherPreset: getStringOrUndefined("weatherPreset"),
     customWeather: getStringOrUndefined("customWeather"),
     occasion: getStringOrUndefined("occasion"),
+    locationKey: getStringOrUndefined("locationKey"),
+    locationLabel: getStringOrUndefined("locationLabel"),
+    locationScope: getStringOrUndefined("locationScope"),
+    locationPath: getStringOrUndefined("locationPath"),
   });
 }
 
@@ -301,10 +334,29 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
   const bookingDate = parseIsoDateToDatabaseDate(input.date);
   const { weatherLabel, weatherSource } = getWeatherPayload(input);
   const accessCode = generateAccessCode();
+  const locationPath = parseLocationPath(input.locationPath);
+
+  if (!locationPath || !locationPath.includes(input.locationKey)) {
+    throw new Error(strings.invalidBooking);
+  }
 
   const booking = await prisma.$transaction(async (tx) => {
     const existing = await tx.booking.findMany({
-      where: { bookingDate },
+      where: {
+        bookingDate,
+        OR: [
+          {
+            locationKey: {
+              in: locationPath,
+            },
+          },
+          {
+            locationPath: {
+              has: input.locationKey,
+            },
+          },
+        ],
+      },
     });
 
     const hasFullDay = existing.some((booking) => booking.slot === "FULL_DAY");
@@ -325,6 +377,10 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
     return tx.booking.create({
       data: {
         bookingDate,
+        locationKey: input.locationKey,
+        locationLabel: input.locationLabel,
+        locationPath,
+        locationScope: input.locationScope,
         slot: input.slot,
         weatherLabel,
         weatherSource,
@@ -353,6 +409,11 @@ export async function updateBooking(
 
   const bookingDate = parseIsoDateToDatabaseDate(input.date);
   const { weatherLabel, weatherSource } = getWeatherPayload(input);
+  const locationPath = parseLocationPath(input.locationPath);
+
+  if (!locationPath || !locationPath.includes(input.locationKey)) {
+    throw new Error(strings.invalidBooking);
+  }
 
   return prisma.$transaction(async (tx) => {
     await verifyBookingAccessCode(tx, access.bookingId, access.accessCode, language);
@@ -360,6 +421,18 @@ export async function updateBooking(
     const existing = await tx.booking.findMany({
       where: {
         bookingDate,
+        OR: [
+          {
+            locationKey: {
+              in: locationPath,
+            },
+          },
+          {
+            locationPath: {
+              has: input.locationKey,
+            },
+          },
+        ],
         NOT: {
           id: access.bookingId,
         },
@@ -387,6 +460,10 @@ export async function updateBooking(
       },
       data: {
         bookingDate,
+        locationKey: input.locationKey,
+        locationLabel: input.locationLabel,
+        locationPath,
+        locationScope: input.locationScope,
         slot: input.slot,
         weatherLabel,
         weatherSource,

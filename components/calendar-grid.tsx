@@ -11,6 +11,7 @@ import {
   translateWeatherLabel,
   type SiteLanguage,
 } from "@/lib/i18n";
+import { getLocationSearchParams, type SelectedLocation } from "@/lib/location";
 import { getWeatherTone } from "@/lib/weather";
 import { WeatherIcon } from "@/components/weather-icon";
 
@@ -19,10 +20,12 @@ type CalendarGridProps = {
   language: SiteLanguage;
   monthKey: string;
   selectedDate: string;
+  selectedLocation: SelectedLocation;
 };
 
-export function CalendarGrid({ days, language, monthKey, selectedDate }: CalendarGridProps) {
+export function CalendarGrid({ days, language, monthKey, selectedDate, selectedLocation }: CalendarGridProps) {
   const strings = getCopy(language);
+  const locationQuery = getLocationSearchParams(selectedLocation);
 
   return (
     <>
@@ -37,28 +40,46 @@ export function CalendarGrid({ days, language, monthKey, selectedDate }: Calenda
         {days.map((day) => {
           const date = parseISO(day.isoDate);
           const isSelected = day.isoDate === selectedDate;
-          const hasFullDayBooking = day.bookings.some((booking) => booking.slot === "FULL_DAY");
-          const hasMorningBooking = day.bookings.some((booking) => booking.slot === "MORNING");
-          const hasAfternoonBooking = day.bookings.some((booking) => booking.slot === "AFTERNOON");
+          const fullDayBooking = day.bookings.find((booking) => booking.slot === "FULL_DAY");
+          const morningBooking = day.bookings.find((booking) => booking.slot === "MORNING");
+          const afternoonBooking = day.bookings.find((booking) => booking.slot === "AFTERNOON");
+          const hasFullDayBooking = Boolean(fullDayBooking);
+          const hasMorningBooking = Boolean(morningBooking);
+          const hasAfternoonBooking = Boolean(afternoonBooking);
           const isUnavailable = hasFullDayBooking || (hasMorningBooking && hasAfternoonBooking);
           const unavailableBookings = isUnavailable
             ? hasFullDayBooking
               ? day.bookings.filter((booking) => booking.slot === "FULL_DAY")
               : day.bookings.filter((booking) => booking.slot === "MORNING" || booking.slot === "AFTERNOON")
             : [];
+          const isPartialBooked = !hasFullDayBooking && (hasMorningBooking || hasAfternoonBooking);
           const primaryTone = unavailableBookings[0]
             ? getWeatherTone(unavailableBookings[0].weatherLabel, unavailableBookings[0].weatherSource)
             : null;
           const secondaryTone = unavailableBookings[1]
             ? getWeatherTone(unavailableBookings[1].weatherLabel, unavailableBookings[1].weatherSource)
             : primaryTone;
-          const unavailableStyle = primaryTone
+          const morningTone = morningBooking
+            ? getWeatherTone(morningBooking.weatherLabel, morningBooking.weatherSource)
+            : null;
+          const afternoonTone = afternoonBooking
+            ? getWeatherTone(afternoonBooking.weatherLabel, afternoonBooking.weatherSource)
+            : null;
+          const cardStyle = hasFullDayBooking && primaryTone
             ? ({
                 "--unavailable-stripe-a": primaryTone.stripe,
                 "--unavailable-stripe-b": secondaryTone?.stripe ?? primaryTone.stripe,
                 "--unavailable-surface": primaryTone.surface,
                 "--unavailable-border": primaryTone.border,
               } as CSSProperties)
+            : isPartialBooked
+              ? ({
+                  "--partial-top-surface": morningTone?.surface ?? "rgba(255, 255, 255, 0)",
+                  "--partial-top-stripe": morningTone?.stripe ?? "rgba(255, 255, 255, 0)",
+                  "--partial-bottom-surface": afternoonTone?.surface ?? "rgba(255, 255, 255, 0)",
+                  "--partial-bottom-stripe": afternoonTone?.stripe ?? "rgba(255, 255, 255, 0)",
+                  "--partial-border": morningTone?.border ?? afternoonTone?.border ?? "rgba(28, 43, 45, 0.16)",
+                } as CSSProperties)
             : undefined;
 
           return (
@@ -67,19 +88,20 @@ export function CalendarGrid({ days, language, monthKey, selectedDate }: Calenda
                 "day-card",
                 day.inMonth ? "" : "muted",
                 day.bookings.length > 0 ? "booked" : "",
+                isPartialBooked ? "partial-booked" : "",
                 isUnavailable ? "unavailable" : "",
                 isSelected ? "selected" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               key={day.isoDate}
-              style={unavailableStyle}
+              style={cardStyle}
             >
               <div className="day-card-header">
                 <Link
                   aria-current={isSelected ? "date" : undefined}
                   className="day-link"
-                  href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}
+                  href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
                   scroll={false}
                 >
                   <span className="day-number">{format(date, "d")}</span>
@@ -102,13 +124,14 @@ export function CalendarGrid({ days, language, monthKey, selectedDate }: Calenda
                         <span>{translateWeatherLabel(booking.weatherLabel, language)}</span>
                       </strong>
                       <span>{getCalendarBookingLabel(booking.slot, booking.bookedBy, language)}</span>
+                      {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
                     </BookingDetailsModal>
                   ))}
                 </div>
               ) : (
                 <Link
                   className="empty-note empty-note-link"
-                  href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}
+                  href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
                   scroll={false}
                 >
                   {strings.availableBooking}

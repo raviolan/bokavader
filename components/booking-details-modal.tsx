@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useId, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -12,6 +12,8 @@ import { WeatherPicker } from "@/components/weather-picker";
 import type { BookingAccessState, BookingFormState, DayBooking } from "@/lib/bookings";
 import { BOOKING_SLOTS } from "@/lib/booking-slot";
 import { getCopy, getSlotLabel, translateWeatherLabel, type SiteLanguage } from "@/lib/i18n";
+import { serializeLocationPath } from "@/lib/location";
+import { getWeatherTone } from "@/lib/weather";
 
 const idleAccessState: BookingAccessState = {
   status: "idle",
@@ -36,33 +38,43 @@ export function BookingDetailsModal({
   triggerClassName,
   children,
 }: BookingDetailsModalProps) {
-  const [mounted, setMounted] = useState(false);
   const strings = getCopy(language);
   const [open, setOpen] = useState(false);
   const [showAccessForm, setShowAccessForm] = useState(false);
   const [verifiedCode, setVerifiedCode] = useState<string | null>(null);
-  const [accessState, accessAction, accessPending] = useActionState(verifyBookingCode, idleAccessState);
-  const [updateState, updateAction, updatePending] = useActionState(submitBookingUpdate, idleBookingState);
-  const [deleteState, deleteAction, deletePending] = useActionState(submitBookingDelete, idleBookingState);
   const slotGroupId = useId();
+  const closeModal = () => {
+    setOpen(false);
+    setShowAccessForm(false);
+    setVerifiedCode(null);
+  };
+  const [accessState, accessAction, accessPending] = useActionState(async (previousState: BookingAccessState, formData: FormData) => {
+    const nextState = await verifyBookingCode(previousState, formData);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (accessState.status === "success" && accessState.verifiedCode) {
-      setVerifiedCode(accessState.verifiedCode);
+    if (nextState.status === "success" && nextState.verifiedCode) {
+      setVerifiedCode(nextState.verifiedCode);
     }
-  }, [accessState]);
 
-  useEffect(() => {
-    if (updateState.status === "success" || deleteState.status === "success") {
-      setOpen(false);
-      setShowAccessForm(false);
-      setVerifiedCode(null);
+    return nextState;
+  }, idleAccessState);
+  const [updateState, updateAction, updatePending] = useActionState(async (previousState: BookingFormState, formData: FormData) => {
+    const nextState = await submitBookingUpdate(previousState, formData);
+
+    if (nextState.status === "success") {
+      closeModal();
     }
-  }, [deleteState.status, updateState.status]);
+
+    return nextState;
+  }, idleBookingState);
+  const [deleteState, deleteAction, deletePending] = useActionState(async (previousState: BookingFormState, formData: FormData) => {
+    const nextState = await submitBookingDelete(previousState, formData);
+
+    if (nextState.status === "success") {
+      closeModal();
+    }
+
+    return nextState;
+  }, idleBookingState);
 
   useEffect(() => {
     if (!open) {
@@ -86,15 +98,15 @@ export function BookingDetailsModal({
     };
   }, [open]);
 
-  function closeModal() {
-    setOpen(false);
-    setShowAccessForm(false);
-    setVerifiedCode(null);
-  }
-
   const initialMode = booking.weatherSource === "CUSTOM" ? "custom" : "preset";
   const defaultPreset = initialMode === "preset" ? booking.weatherLabel : "Sunny";
   const initialCustomWeather = initialMode === "custom" ? booking.weatherLabel : "";
+  const tone = getWeatherTone(booking.weatherLabel, booking.weatherSource);
+  const modalToneStyle = {
+    "--modal-weather-stripe": tone.stripe,
+    "--modal-weather-surface": tone.surface,
+    "--modal-weather-border": tone.border,
+  } as CSSProperties;
 
   return (
     <>
@@ -102,7 +114,7 @@ export function BookingDetailsModal({
         {children}
       </button>
 
-      {open && mounted
+      {open
         ? createPortal(
             <div
               aria-modal="true"
@@ -114,7 +126,7 @@ export function BookingDetailsModal({
               }}
               role="dialog"
             >
-              <div className="modal-panel">
+              <div className="modal-panel weather-modal-panel" style={modalToneStyle}>
                 <div className="modal-header">
                   <div>
                     <p className="selected-date">{strings.bookingForDate(booking.date)}</p>
@@ -131,6 +143,7 @@ export function BookingDetailsModal({
                   </p>
                   <p>{translateWeatherLabel(booking.weatherLabel, language)}</p>
                   <p>{strings.reservedBy(booking.bookedBy)}</p>
+                  <p>{strings.broaderBooking(booking.locationLabel)}</p>
                   {booking.occasion ? <p className="booking-occasion">{booking.occasion}</p> : null}
                 </div>
 
@@ -177,6 +190,10 @@ export function BookingDetailsModal({
                       <input name="accessCode" type="hidden" value={verifiedCode} />
                       <input name="lang" type="hidden" value={language} />
                       <input name="month" type="hidden" value={monthKey} />
+                      <input name="locationKey" type="hidden" value={booking.locationKey} />
+                      <input name="locationLabel" type="hidden" value={booking.locationLabel} />
+                      <input name="locationPath" type="hidden" value={serializeLocationPath(booking.locationPath)} />
+                      <input name="locationScope" type="hidden" value={booking.locationScope} />
 
                       <div className="field">
                         <label htmlFor={`${slotGroupId}-booked-by`}>{strings.name}</label>

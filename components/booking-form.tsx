@@ -7,6 +7,7 @@ import { BookingDetailsModal } from "@/components/booking-details-modal";
 import type { BookingFormState, DayBooking } from "@/lib/bookings";
 import { BOOKING_SLOTS } from "@/lib/booking-slot";
 import { getCopy, getSlotLabel, translateWeatherLabel, type SiteLanguage } from "@/lib/i18n";
+import { serializeLocationPath, type SelectedLocation } from "@/lib/location";
 import { WEATHER_PRESETS } from "@/lib/weather";
 import { WeatherPicker } from "@/components/weather-picker";
 import { WeatherIcon } from "@/components/weather-icon";
@@ -21,9 +22,17 @@ type BookingFormProps = {
   language: SiteLanguage;
   monthKey: string;
   selectedDate: string;
+  selectedLocation: SelectedLocation;
 };
 
-export function BookingForm({ databaseConfigured, dayBookings, language, monthKey, selectedDate }: BookingFormProps) {
+export function BookingForm({
+  databaseConfigured,
+  dayBookings,
+  language,
+  monthKey,
+  selectedDate,
+  selectedLocation,
+}: BookingFormProps) {
   const strings = getCopy(language);
   const [state, formAction, pending] = useActionState(submitBooking, initialState);
   const [dismissedAccessCode, setDismissedAccessCode] = useState<string | null>(null);
@@ -50,12 +59,6 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
   }, [showConfirmationDialog]);
 
   useEffect(() => {
-    if (state.status === "success" && state.accessCode) {
-      setDismissedAccessCode(null);
-    }
-  }, [state.accessCode, state.status]);
-
-  useEffect(() => {
     if (databaseConfigured && dayBookings.length === 0) {
       console.log(strings.dbSetupHint);
     }
@@ -65,11 +68,16 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
     <>
       <h2>{strings.reserveForecast}</h2>
       <p className="selected-date">{strings.selectedDayWithDate(selectedDate)}</p>
+      <p className="subtle">{strings.showingCalendarFor(selectedLocation.label)}</p>
 
       <form action={formAction} className="booking-form">
         <input name="date" type="hidden" value={selectedDate} />
         <input name="lang" type="hidden" value={language} />
         <input name="month" type="hidden" value={monthKey} />
+        <input name="locationKey" type="hidden" value={selectedLocation.key} />
+        <input name="locationLabel" type="hidden" value={selectedLocation.label} />
+        <input name="locationPath" type="hidden" value={serializeLocationPath(selectedLocation.path)} />
+        <input name="locationScope" type="hidden" value={selectedLocation.scope} />
 
         <div className="field">
           <label htmlFor="bookedBy">{strings.name}</label>
@@ -163,6 +171,7 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
                 </span>
               </strong>
               <span>{strings.reservedBy(booking.bookedBy)}</span>
+              {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
               {booking.occasion ? <span className="booking-occasion">{booking.occasion}</span> : null}
             </BookingDetailsModal>
           ))

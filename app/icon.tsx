@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getDayBookings, type DayBooking } from "@/lib/bookings";
+import { DEFAULT_LOCATION } from "@/lib/location";
 import { getWeatherFaviconSpec } from "@/lib/weather";
 
 export const contentType = "image/png";
@@ -108,7 +109,7 @@ export default async function Icon() {
   let weatherSource: "PRESET" | "CUSTOM" = "PRESET";
 
   try {
-    const todayBookings = await getDayBookings(getTodayIsoDateInStockholm());
+    const todayBookings = await getDayBookings(getTodayIsoDateInStockholm(), DEFAULT_LOCATION);
     const booking = pickTodayWeather(todayBookings);
 
     if (booking) {

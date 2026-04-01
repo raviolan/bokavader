@@ -20,6 +20,10 @@ enum WeatherSource {
 model Booking {
   id             String        @id @default(cuid())
   bookingDate    DateTime      @db.Date
+  locationKey    String
+  locationLabel  String
+  locationPath   String[]
+  locationScope  String
   slot           BookingSlot
   weatherLabel   String
   weatherSource  WeatherSource
@@ -28,6 +32,7 @@ model Booking {
   accessCodeHash String
   createdAt      DateTime      @default(now())
 
-  @@unique([bookingDate, slot])
+  @@unique([locationKey, bookingDate, slot])
   @@index([bookingDate])
+  @@index([locationKey, bookingDate])
 }
