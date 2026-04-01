@@ -456,19 +456,20 @@ textarea {
 .partial-booking-list {
   flex: 1;
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 0;
   min-height: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  margin-top: 8px;
 }
 
 .partial-slot {
   position: relative;
   min-height: 0;
-  border-radius: 14px;
   overflow: hidden;
 }
 
 .partial-slot.occupied {
-  border: 1px solid color-mix(in srgb, var(--slot-border, rgba(28, 43, 45, 0.12)) 84%, white);
   background:
     repeating-linear-gradient(
       -45deg,
@@ -482,12 +483,14 @@ textarea {
       color-mix(in srgb, var(--slot-surface, rgba(255, 255, 255, 0.9)) 88%, white) 0,
       color-mix(in srgb, var(--slot-surface, rgba(255, 255, 255, 0.9)) 88%, white) 100%
     );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--slot-border, rgba(28, 43, 45, 0.12)) 14%, transparent);
 }
 
 .partial-slot.empty {
-  border: 1px dashed rgba(28, 43, 45, 0.08);
-  background: rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.partial-slot-morning {
+  border-bottom: 1px solid rgba(28, 43, 45, 0.08);
 }
 
 .booking-chip {
@@ -503,7 +506,9 @@ textarea {
   display: grid;
   align-content: center;
   min-height: 100%;
-  padding: 8px 9px;
+  width: 100%;
+  height: 100%;
+  padding: 8px 10px;
   border-radius: 0;
   background: transparent;
   font-size: 0.68rem;
