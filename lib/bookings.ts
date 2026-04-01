@@ -16,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { isDatabaseEnabled } from "@/lib/prisma";
 import { formatDatabaseDateToIso, parseIsoDateToDatabaseDate } from "@/lib/date";
 import { capitalizeFirstLetter, getCopy, type SiteLanguage } from "@/lib/i18n";
-import { parseLocationPath, type SelectedLocation } from "@/lib/location";
+import { normalizeLocationLabel, parseLocationPath, type SelectedLocation } from "@/lib/location";
 import { BOOKING_SLOTS, type BookingSlotValue } from "@/lib/booking-slot";
 import { MAX_CUSTOM_WEATHER_LENGTH, MAX_OCCASION_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
 
@@ -179,7 +179,7 @@ export async function getCalendarMonth(
       id: booking.id,
       date,
       locationKey: booking.locationKey,
-      locationLabel: booking.locationLabel,
+      locationLabel: normalizeLocationLabel(booking.locationLabel),
       locationPath: booking.locationPath,
       locationScope: booking.locationScope,
       slot: booking.slot,
@@ -239,7 +239,7 @@ export async function getDayBookings(isoDate: string, location: SelectedLocation
     id: booking.id,
     date: isoDate,
     locationKey: booking.locationKey,
-    locationLabel: booking.locationLabel,
+    locationLabel: normalizeLocationLabel(booking.locationLabel),
     locationPath: booking.locationPath,
     locationScope: booking.locationScope,
     slot: booking.slot,
@@ -428,7 +428,7 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
       data: {
         bookingDate,
         locationKey: input.locationKey,
-        locationLabel: input.locationLabel,
+        locationLabel: normalizeLocationLabel(input.locationLabel),
         locationPath,
         locationScope: input.locationScope,
         slot: input.slot,
@@ -511,7 +511,7 @@ export async function updateBooking(
       data: {
         bookingDate,
         locationKey: input.locationKey,
-        locationLabel: input.locationLabel,
+        locationLabel: normalizeLocationLabel(input.locationLabel),
         locationPath,
         locationScope: input.locationScope,
         slot: input.slot,

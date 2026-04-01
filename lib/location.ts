@@ -11,6 +11,20 @@ export type SelectedLocation = {
   path: string[];
 };
 
+const LOCATION_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bVastra\b/gi, "Västra"],
+  [/\bGotalands\b/gi, "Götalands"],
+  [/\bLan\b/gi, "Län"],
+  [/\bGoteborg\b/gi, "Göteborg"],
+  [/\bSkane\b/gi, "Skåne"],
+  [/\bMalmo\b/gi, "Malmö"],
+  [/\bJonkoping\b/gi, "Jönköping"],
+  [/\bOrebro\b/gi, "Örebro"],
+  [/\bVaxjo\b/gi, "Växjö"],
+  [/\bAngelholm\b/gi, "Ängelholm"],
+  [/\bAkersberga\b/gi, "Åkersberga"],
+];
+
 type LocationShape = {
   countryCode: string;
   countryName: string;
@@ -74,50 +88,55 @@ function uniqueParts(parts: Array<string | undefined>) {
   });
 }
 
+export function normalizeLocationLabel(label: string) {
+  return LOCATION_LABEL_REPLACEMENTS.reduce((current, [pattern, replacement]) => current.replace(pattern, replacement), label.trim());
+}
+
 export function createSelectedLocation(shape: LocationShape): SelectedLocation {
   const countryCode = slugifyLocationPart(shape.countryCode);
-  const countryKey = buildCountryKey(countryCode, shape.countryName);
+  const countryName = normalizeLocationLabel(shape.countryName);
+  const countryKey = buildCountryKey(countryCode, countryName);
 
   if (shape.scope === "country") {
     return {
       key: countryKey,
-      label: shape.countryName,
+      label: countryName,
       scope: "country",
       path: [countryKey],
     };
   }
 
-  const regionName = shape.regionName?.trim();
+  const regionName = shape.regionName ? normalizeLocationLabel(shape.regionName) : undefined;
 
   if (shape.scope === "region" || !shape.cityName) {
-    const fallbackRegionName = regionName ?? shape.countryName;
+    const fallbackRegionName = regionName ?? countryName;
     const regionKey = buildRegionKey(countryCode, fallbackRegionName);
 
     return {
       key: regionKey,
-      label: uniqueParts([fallbackRegionName, shape.countryName]).join(", "),
+      label: uniqueParts([fallbackRegionName, countryName]).join(", "),
       scope: "region",
       path: [countryKey, regionKey],
     };
   }
 
-  const cityName = shape.cityName.trim();
+  const cityName = normalizeLocationLabel(shape.cityName);
   const cityKey = buildCityKey(countryCode, cityName, regionName);
   const path = uniqueParts([countryKey, regionName ? buildRegionKey(countryCode, regionName) : undefined, cityKey]);
 
   return {
     key: cityKey,
-    label: uniqueParts([cityName, regionName, shape.countryName]).join(", "),
+    label: uniqueParts([cityName, regionName, countryName]).join(", "),
     scope: "city",
     path,
   };
 }
 
 export const DEFAULT_LOCATION = createSelectedLocation({
-  cityName: "Gothenburg",
+  cityName: "Göteborg",
   countryCode: "se",
   countryName: "Sweden",
-  regionName: "Vastra Gotalands lan",
+  regionName: "Västra Götalands Län",
   scope: "city",
 });
 
@@ -164,7 +183,7 @@ export function parseSelectedLocation(input: {
 
   return {
     key: input.locationKey,
-    label: input.locationLabel,
+    label: normalizeLocationLabel(input.locationLabel),
     scope: input.locationScope,
     path,
   } satisfies SelectedLocation;
@@ -203,7 +222,7 @@ export function deserializeSelectedLocation(value: string) {
 
     return {
       key: parsed.key,
-      label: parsed.label,
+      label: normalizeLocationLabel(parsed.label),
       path: parsed.path,
       scope: parsed.scope,
     } satisfies SelectedLocation;
