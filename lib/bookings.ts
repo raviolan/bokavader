@@ -52,6 +52,12 @@ export type BookingAccessState = {
   verifiedCode?: string;
 };
 
+export function resolveCalendarMonthStart(monthKey?: string) {
+  const month = monthKey && /^\d{4}-\d{2}$/.test(monthKey) ? parseISO(`${monthKey}-01`) : new Date();
+
+  return startOfMonth(month);
+}
+
 async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
   try {
     return await query();
@@ -128,9 +134,8 @@ export async function getCalendarMonth(
   location: SelectedLocation,
 ) {
   const strings = getCopy(language);
-  const month = monthKey && /^\d{4}-\d{2}$/.test(monthKey) ? parseISO(`${monthKey}-01`) : new Date();
-  const monthStart = startOfMonth(month);
-  const monthEnd = endOfMonth(month);
+  const monthStart = resolveCalendarMonthStart(monthKey);
+  const monthEnd = endOfMonth(monthStart);
   const visibleStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const visibleEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const visibleStartDate = parseIsoDateToDatabaseDate(format(visibleStart, "yyyy-MM-dd"));

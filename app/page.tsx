@@ -4,7 +4,7 @@ import { format } from "date-fns";
 
 import { BookingForm } from "@/components/booking-form";
 import { CalendarGrid } from "@/components/calendar-grid";
-import { getCalendarMonth, getDayBookings } from "@/lib/bookings";
+import { getCalendarMonth, getDayBookings, resolveCalendarMonthStart } from "@/lib/bookings";
 import { buildLocalizedHref, getCopy, parseLanguage } from "@/lib/i18n";
 import { getLocationSearchParams, parseSelectedLocation } from "@/lib/location";
 import { isDatabaseEnabled } from "@/lib/prisma";
@@ -30,15 +30,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const strings = getCopy(language);
   const selectedLocation = parseSelectedLocation(params);
   const locationQuery = getLocationSearchParams(selectedLocation);
-  const calendar = await getCalendarMonth(params.month, language, selectedLocation);
   const today = new Date();
   const todayDate = format(today, "yyyy-MM-dd");
   const todayMonth = format(today, "yyyy-MM");
+  const monthStart = resolveCalendarMonthStart(params.month);
   const selectedDate =
     typeof params.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.date)
       ? params.date
-      : format(calendar.currentMonth, "yyyy-MM-dd");
-  const dayBookings = await getDayBookings(selectedDate, selectedLocation);
+      : format(monthStart, "yyyy-MM-dd");
+  const [calendar, dayBookings] = await Promise.all([
+    getCalendarMonth(params.month, language, selectedLocation),
+    getDayBookings(selectedDate, selectedLocation),
+  ]);
 
   return (
     <main className="page-shell">
