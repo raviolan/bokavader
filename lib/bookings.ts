@@ -71,6 +71,10 @@ function getBookingAdminCode() {
   return value ? value : null;
 }
 
+function normalizeAdminCode(value: string) {
+  return value.trim().toUpperCase();
+}
+
 function getBookingCodeSchema(language: SiteLanguage) {
   const strings = getCopy(language);
 
@@ -297,7 +301,7 @@ function hashAccessCode(accessCode: string) {
 }
 
 function createAdminAccessToken(bookingId: string, adminCode: string) {
-  return `admin:${createHmac("sha256", adminCode).update(bookingId).digest("hex")}`;
+  return `admin:${createHmac("sha256", normalizeAdminCode(adminCode)).update(bookingId).digest("hex")}`;
 }
 
 function isAdminAccessToken(accessCode: string) {
@@ -316,6 +320,8 @@ async function verifyBookingAccessCode(
 ) {
   const strings = getCopy(language);
   const adminCode = getBookingAdminCode();
+  const normalizedAccessCode = accessCode.trim();
+  const normalizedAdminInput = normalizeAdminCode(normalizedAccessCode);
   const booking = await tx.booking.findUnique({
     where: { id: bookingId },
     select: {
@@ -328,24 +334,28 @@ async function verifyBookingAccessCode(
     throw new Error(strings.bookingMissing);
   }
 
-  if (adminCode && accessCode === adminCode) {
+  if (adminCode && normalizedAdminInput === normalizeAdminCode(adminCode)) {
     return {
       verifiedCode: createAdminAccessToken(bookingId, adminCode),
     };
   }
 
-  if (adminCode && isAdminAccessToken(accessCode) && accessCode === createAdminAccessToken(bookingId, adminCode)) {
+  if (
+    adminCode &&
+    isAdminAccessToken(normalizedAccessCode) &&
+    normalizedAccessCode === createAdminAccessToken(bookingId, adminCode)
+  ) {
     return {
-      verifiedCode: accessCode,
+      verifiedCode: normalizedAccessCode,
     };
   }
 
-  if (booking.accessCodeHash !== hashAccessCode(accessCode)) {
+  if (booking.accessCodeHash !== hashAccessCode(normalizedAccessCode)) {
     throw new Error(strings.codeMismatch);
   }
 
   return {
-    verifiedCode: accessCode,
+    verifiedCode: normalizedAccessCode,
   };
 }
 

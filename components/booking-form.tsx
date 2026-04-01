@@ -158,7 +158,7 @@ export function BookingForm({
         {dayBookings.length > 0 ? (
           dayBookings.map((booking) => (
             <BookingDetailsModal
-              booking={booking}
+              bookings={[booking]}
               key={booking.id}
               language={language}
               monthKey={monthKey}

@@ -7,7 +7,7 @@ import type { DayBooking } from "@/lib/bookings";
 import type { SiteLanguage } from "@/lib/i18n";
 
 type BookingDetailsModalProps = {
-  booking: DayBooking;
+  bookings: DayBooking[];
   language: SiteLanguage;
   monthKey: string;
   triggerClassName: string;
@@ -19,7 +19,7 @@ const BookingDetailsDialog = dynamic(() =>
 );
 
 export function BookingDetailsModal({
-  booking,
+  bookings,
   language,
   monthKey,
   triggerClassName,
@@ -33,9 +33,9 @@ export function BookingDetailsModal({
         {children}
       </button>
 
-      {open ? (
+      {open && bookings.length > 0 ? (
         <BookingDetailsDialog
-          booking={booking}
+          bookings={bookings}
           language={language}
           monthKey={monthKey}
           onClose={() => setOpen(false)}

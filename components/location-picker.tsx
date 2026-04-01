@@ -108,6 +108,10 @@ export function LocationPicker({ hasExplicitLocation, language, selectedLocation
   }, [language, open, query, selectedLocation.label]);
 
   function replaceLocation(location: SelectedLocation) {
+    if (location.key === selectedLocation.key) {
+      return;
+    }
+
     const params = new URLSearchParams(searchParams.toString());
 
     for (const [key, value] of Object.entries(getLocationSearchParams(location))) {
@@ -120,6 +124,13 @@ export function LocationPicker({ hasExplicitLocation, language, selectedLocation
   }
 
   function selectLocation(location: SelectedLocation) {
+    if (location.key === selectedLocation.key) {
+      setQuery(location.label);
+      setResults([]);
+      setOpen(false);
+      return;
+    }
+
     window.localStorage.setItem(LOCATION_STORAGE_KEY, serializeSelectedLocation(location));
     setQuery(location.label);
     setResults([]);

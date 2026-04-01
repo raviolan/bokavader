@@ -52,6 +52,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <Link
               className={`language-button ${language === "sv" ? "active" : ""}`}
               href={buildLocalizedHref("sv", { ...locationQuery, date: selectedDate, month: calendar.monthKey, lang: "sv" })}
+              prefetch={false}
               scroll={false}
             >
               SV
@@ -59,6 +60,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <Link
               className={`language-button ${language === "en" ? "active" : ""}`}
               href={buildLocalizedHref("en", { ...locationQuery, date: selectedDate, month: calendar.monthKey, lang: "en" })}
+              prefetch={false}
               scroll={false}
             >
               EN
@@ -81,6 +83,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <Link
                 className="today-button"
                 href={buildLocalizedHref(language, { ...locationQuery, month: todayMonth, date: todayDate })}
+                prefetch={false}
                 scroll={false}
               >
                 {strings.backToToday}
@@ -89,6 +92,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 aria-label={strings.previousMonth}
                 className="nav-button"
                 href={buildLocalizedHref(language, { ...locationQuery, month: calendar.prevMonthKey, date: selectedDate })}
+                prefetch={false}
                 scroll={false}
               >
                 <ChevronLeft size={18} />
@@ -97,6 +101,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 aria-label={strings.nextMonth}
                 className="nav-button"
                 href={buildLocalizedHref(language, { ...locationQuery, month: calendar.nextMonthKey, date: selectedDate })}
+                prefetch={false}
                 scroll={false}
               >
                 <ChevronRight size={18} />

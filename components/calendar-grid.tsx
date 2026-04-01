@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { format, parseISO } from "date-fns";
 
 import { BookingDetailsModal } from "@/components/booking-details-modal";
-import type { CalendarDay } from "@/lib/bookings";
+import type { CalendarDay, DayBooking } from "@/lib/bookings";
 import {
   buildLocalizedHref,
   getCalendarBookingLabel,
@@ -22,6 +22,14 @@ type CalendarGridProps = {
   selectedDate: string;
   selectedLocation: SelectedLocation;
 };
+
+function getModalBookings(fullDayBooking: DayBooking | undefined, morningBooking: DayBooking | undefined, afternoonBooking: DayBooking | undefined) {
+  if (fullDayBooking) {
+    return [fullDayBooking];
+  }
+
+  return [morningBooking, afternoonBooking].filter((booking): booking is DayBooking => Boolean(booking));
+}
 
 export function CalendarGrid({ days, language, monthKey, selectedDate, selectedLocation }: CalendarGridProps) {
   const strings = getCopy(language);
@@ -65,6 +73,7 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
           const afternoonTone = afternoonBooking
             ? getWeatherTone(afternoonBooking.weatherLabel, afternoonBooking.weatherSource)
             : null;
+          const modalBookings = getModalBookings(fullDayBooking, morningBooking, afternoonBooking);
           const morningStyle = morningTone
             ? ({
                 "--slot-surface": morningTone.surface,
@@ -94,7 +103,7 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
                   "--partial-bottom-stripe": afternoonTone?.stripe ?? "rgba(255, 255, 255, 0)",
                   "--partial-border": morningTone?.border ?? afternoonTone?.border ?? "rgba(28, 43, 45, 0.16)",
                 } as CSSProperties)
-            : undefined;
+              : undefined;
 
           return (
             <div
@@ -111,102 +120,96 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
               key={day.isoDate}
               style={cardStyle}
             >
-              <div className="day-card-header">
-                <Link
-                  aria-current={isSelected ? "date" : undefined}
-                  className="day-link"
-                  href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
-                  scroll={false}
-                >
-                  <span className="day-number">{format(date, "d")}</span>
-                </Link>
-              </div>
-
               {day.bookings.length > 0 ? (
-                isPartialBooked ? (
-                  <div className="booking-list partial-booking-list">
-                    <div
-                      className={[
-                        "partial-slot",
-                        "partial-slot-morning",
-                        morningBooking ? "occupied" : "empty",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      style={morningStyle}
-                    >
-                      {morningBooking ? (
-                        <BookingDetailsModal
-                          booking={morningBooking}
-                          key={morningBooking.id}
-                          language={language}
-                          monthKey={monthKey}
-                          triggerClassName="booking-chip booking-chip-button partial-booking-chip"
-                        >
-                          <strong className="weather-label">
-                            <WeatherIcon className="weather-icon" weatherLabel={morningBooking.weatherLabel} />
-                            <span>{translateWeatherLabel(morningBooking.weatherLabel, language)}</span>
-                          </strong>
-                          <span>{getCalendarBookingLabel(morningBooking.slot, morningBooking.bookedBy, language)}</span>
-                        </BookingDetailsModal>
-                      ) : null}
-                    </div>
+                <BookingDetailsModal bookings={modalBookings} language={language} monthKey={monthKey} triggerClassName="day-card-trigger">
+                  <div className="day-card-header">
+                    <span aria-current={isSelected ? "date" : undefined} className="day-link">
+                      <span className="day-number">{format(date, "d")}</span>
+                    </span>
+                  </div>
 
-                    <div
-                      className={[
-                        "partial-slot",
-                        "partial-slot-afternoon",
-                        afternoonBooking ? "occupied" : "empty",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      style={afternoonStyle}
-                    >
-                      {afternoonBooking ? (
-                        <BookingDetailsModal
-                          booking={afternoonBooking}
-                          key={afternoonBooking.id}
-                          language={language}
-                          monthKey={monthKey}
-                          triggerClassName="booking-chip booking-chip-button partial-booking-chip"
-                        >
-                          <strong className="weather-label">
-                            <WeatherIcon className="weather-icon" weatherLabel={afternoonBooking.weatherLabel} />
-                            <span>{translateWeatherLabel(afternoonBooking.weatherLabel, language)}</span>
-                          </strong>
-                          <span>{getCalendarBookingLabel(afternoonBooking.slot, afternoonBooking.bookedBy, language)}</span>
-                        </BookingDetailsModal>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="booking-list">
-                    {day.bookings.map((booking) => (
-                      <BookingDetailsModal
-                        booking={booking}
-                        key={booking.id}
-                        language={language}
-                        monthKey={monthKey}
-                        triggerClassName="booking-chip booking-chip-button"
+                  {isPartialBooked ? (
+                    <div className="booking-list partial-booking-list">
+                      <div
+                        className={[
+                          "partial-slot",
+                          "partial-slot-morning",
+                          morningBooking ? "occupied" : "empty",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={morningStyle}
                       >
-                        <strong className="weather-label">
-                          <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
-                          <span>{translateWeatherLabel(booking.weatherLabel, language)}</span>
-                        </strong>
-                        <span>{getCalendarBookingLabel(booking.slot, booking.bookedBy, language)}</span>
-                        {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
-                      </BookingDetailsModal>
-                    ))}
-                  </div>
-                )
+                        {morningBooking ? (
+                          <div className="booking-chip partial-booking-chip">
+                            <strong className="weather-label">
+                              <WeatherIcon className="weather-icon" weatherLabel={morningBooking.weatherLabel} />
+                              <span>{translateWeatherLabel(morningBooking.weatherLabel, language)}</span>
+                            </strong>
+                            <span>{getCalendarBookingLabel(morningBooking.slot, morningBooking.bookedBy, language)}</span>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div
+                        className={[
+                          "partial-slot",
+                          "partial-slot-afternoon",
+                          afternoonBooking ? "occupied" : "empty",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={afternoonStyle}
+                      >
+                        {afternoonBooking ? (
+                          <div className="booking-chip partial-booking-chip">
+                            <strong className="weather-label">
+                              <WeatherIcon className="weather-icon" weatherLabel={afternoonBooking.weatherLabel} />
+                              <span>{translateWeatherLabel(afternoonBooking.weatherLabel, language)}</span>
+                            </strong>
+                            <span>{getCalendarBookingLabel(afternoonBooking.slot, afternoonBooking.bookedBy, language)}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="booking-list">
+                      {modalBookings.map((booking) => (
+                        <div className="booking-chip" key={booking.id}>
+                          <strong className="weather-label">
+                            <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
+                            <span>{translateWeatherLabel(booking.weatherLabel, language)}</span>
+                          </strong>
+                          <span>{getCalendarBookingLabel(booking.slot, booking.bookedBy, language)}</span>
+                          {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </BookingDetailsModal>
               ) : (
-                <Link
-                  className="empty-note empty-note-link"
-                  href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
-                  scroll={false}
-                >
-                  {strings.availableBooking}
-                </Link>
+                <>
+                  <div className="day-card-header">
+                    <Link
+                      aria-current={isSelected ? "date" : undefined}
+                      className="day-link"
+                      href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
+                      prefetch={false}
+                      scroll={false}
+                    >
+                      <span className="day-number">{format(date, "d")}</span>
+                    </Link>
+                  </div>
+
+                  <Link
+                    className="empty-note empty-note-link"
+                    href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
+                    prefetch={false}
+                    scroll={false}
+                  >
+                    {strings.availableBooking}
+                  </Link>
+                </>
               )}
             </div>
           );
