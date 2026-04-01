@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState, type CSSProperties } from "react";
+import { useActionState, useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 import { submitBookingDelete, submitBookingUpdate, verifyBookingCode } from "@/app/actions";
@@ -40,6 +40,7 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
   const [verifiedCode, setVerifiedCode] = useState<string | null>(null);
   const [isAccessCodeVisible, setIsAccessCodeVisible] = useState(false);
   const slotGroupId = useId();
+  const accessFormRef = useRef<HTMLFormElement>(null);
 
   function closeSection() {
     setShowAccessForm(false);
@@ -104,7 +105,7 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
       ) : null}
 
       {showAccessForm && !verifiedCode ? (
-        <form action={accessAction} className="booking-form modal-form">
+        <form action={accessAction} className="booking-form modal-form" ref={accessFormRef}>
           <input name="bookingId" type="hidden" value={booking.id} />
           <input name="lang" type="hidden" value={language} />
 
@@ -116,6 +117,12 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
                 id={`${slotGroupId}-access-code`}
                 maxLength={128}
                 name="accessCode"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    accessFormRef.current?.requestSubmit();
+                  }
+                }}
                 placeholder={strings.codePlaceholder}
                 type={isAccessCodeVisible ? "text" : "password"}
               />
