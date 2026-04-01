@@ -18,14 +18,15 @@ enum WeatherSource {
 }
 
 model Booking {
-  id            String        @id @default(cuid())
-  bookingDate   DateTime      @db.Date
-  slot          BookingSlot
-  weatherLabel  String
-  weatherSource WeatherSource
-  bookedBy      String
+  id             String        @id @default(cuid())
+  bookingDate    DateTime      @db.Date
+  slot           BookingSlot
+  weatherLabel   String
+  weatherSource  WeatherSource
+  bookedBy       String
+  occasion       String?
   accessCodeHash String
-  createdAt     DateTime      @default(now())
+  createdAt      DateTime      @default(now())
 
   @@unique([bookingDate, slot])
   @@index([bookingDate])

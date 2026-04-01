@@ -67,18 +67,19 @@ export function WeatherPicker({
         </select>
       </div>
 
-      <div className="field">
-        <label htmlFor={customInputId}>{strings.customWeather}</label>
-        <input
-          defaultValue={initialCustomWeather}
-          disabled={mode !== "custom"}
-          id={customInputId}
-          maxLength={32}
-          name="customWeather"
-          placeholder={strings.customPlaceholder}
-          type="text"
-        />
-      </div>
+      {mode === "custom" ? (
+        <div className="field">
+          <label htmlFor={customInputId}>{strings.customWeather}</label>
+          <input
+            defaultValue={initialCustomWeather}
+            id={customInputId}
+            maxLength={32}
+            name="customWeather"
+            placeholder={strings.customPlaceholder}
+            type="text"
+          />
+        </div>
+      ) : null}
     </>
   );
 }

@@ -131,6 +131,7 @@ export function BookingDetailsModal({
                   </p>
                   <p>{translateWeatherLabel(booking.weatherLabel, language)}</p>
                   <p>{strings.reservedBy(booking.bookedBy)}</p>
+                  {booking.occasion ? <p className="booking-occasion">{booking.occasion}</p> : null}
                 </div>
 
                 {!showAccessForm && !verifiedCode ? (
@@ -215,6 +216,19 @@ export function BookingDetailsModal({
                         initialMode={initialMode}
                         language={language}
                       />
+
+                      <div className="field">
+                        <label htmlFor={`${slotGroupId}-occasion`}>{strings.occasion}</label>
+                        <textarea
+                          defaultValue={booking.occasion ?? ""}
+                          id={`${slotGroupId}-occasion`}
+                          maxLength={280}
+                          name="occasion"
+                          placeholder={strings.occasionPlaceholder}
+                          rows={5}
+                        />
+                        <p className="field-hint">{strings.occasionOptional}</p>
+                      </div>
 
                       {updateState.status !== "idle" ? (
                         <p className={`status-message ${updateState.status === "error" ? "error" : "success"}`} role="status">

@@ -63,6 +63,9 @@ const copy = {
     presetWeather: "Förvalt väder",
     customWeather: "Eget väder",
     customPlaceholder: "Meteorregn, dimmigt sken, grodregn...",
+    occasion: "Anledning",
+    occasionPlaceholder: "Varför passar just det här vädret idag?",
+    occasionOptional: "Beskriv tillfället om du vill.",
     dbSetupHint:
       "Om bokningarna fortfarande är tomma efter installationen behöver databasanslutningen troligen justeras.",
     databaseDisabled:
@@ -102,8 +105,11 @@ const copy = {
     chooseListedWeather: "Välj en vädertyp från listan.",
     addCustomWeather: "Lägg till en egen vädertext.",
     longCustomWeather: "Eget väder måste vara kortare än 32 tecken.",
+    longOccasion: "Anledningen måste vara kortare än 280 tecken.",
     bookingFailed: "Bokningen misslyckades.",
     databaseLoginFailed: "Databasinloggningen misslyckades. Kontrollera `DATABASE_URL` och pooler-inställningarna.",
+    databaseSchemaOutdated:
+      "Databasen matchar inte den senaste app-versionen. Kör Prisma-migreringarna i den delade databasen och publicera igen.",
     reservedForDate: (date: string) => `Vädret är bokat för ${date}.`,
     reservedGeneric: () => "Vädret är bokat.",
     codeAccepted: "Koden stämmer. Du kan nu ändra eller ta bort bokningen.",
@@ -148,6 +154,9 @@ const copy = {
     presetWeather: "Preset weather",
     customWeather: "Custom weather",
     customPlaceholder: "Meteor shower, misty glow, frog rain...",
+    occasion: "Occasion",
+    occasionPlaceholder: "Why does this weather fit the moment?",
+    occasionOptional: "Describe the occasion if you want to.",
     dbSetupHint: "If bookings stay empty after setup, the database connection likely still needs adjustment.",
     databaseDisabled:
       "Shared bookings are off for now. Add `DATABASE_URL` later and make sure `DISABLE_DATABASE` is not `true`.",
@@ -186,8 +195,11 @@ const copy = {
     chooseListedWeather: "Choose a listed weather type.",
     addCustomWeather: "Add a custom weather label.",
     longCustomWeather: "Custom weather must be under 32 characters.",
+    longOccasion: "Occasion must be under 280 characters.",
     bookingFailed: "Booking failed.",
     databaseLoginFailed: "Database login failed. Check the `DATABASE_URL` credentials and pooler settings.",
+    databaseSchemaOutdated:
+      "The database schema does not match the current app version. Run the Prisma migrations against the shared database and redeploy.",
     reservedForDate: (date: string) => `Weather reserved for ${date}.`,
     reservedGeneric: () => "Weather reserved.",
     codeAccepted: "Code accepted. You can now edit or delete this booking.",

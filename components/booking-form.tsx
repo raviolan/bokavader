@@ -78,6 +78,18 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
 
         <WeatherPicker defaultPreset={WEATHER_PRESETS[0]} language={language} />
 
+        <div className="field">
+          <label htmlFor="occasion">{strings.occasion}</label>
+          <textarea
+            id="occasion"
+            maxLength={280}
+            name="occasion"
+            placeholder={strings.occasionPlaceholder}
+            rows={5}
+          />
+          <p className="field-hint">{strings.occasionOptional}</p>
+        </div>
+
         {!databaseConfigured ? (
           <p className="status-message error" role="status">
             {strings.databaseDisabled}
@@ -116,6 +128,7 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
                 </span>
               </strong>
               <span>{strings.reservedBy(booking.bookedBy)}</span>
+              {booking.occasion ? <span className="booking-occasion">{booking.occasion}</span> : null}
             </BookingDetailsModal>
           ))
         ) : (

@@ -40,7 +40,8 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -372,12 +373,25 @@ select {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   padding: 13px 14px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.9);
+}
+
+.field textarea {
+  min-height: 132px;
+  resize: vertical;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .slot-grid,
@@ -468,6 +482,12 @@ select {
 
 .side-item-button span {
   display: block;
+}
+
+.booking-occasion {
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .hint {

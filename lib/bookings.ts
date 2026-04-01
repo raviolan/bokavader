@@ -17,7 +17,7 @@ import { isDatabaseEnabled } from "@/lib/prisma";
 import { formatDatabaseDateToIso, parseIsoDateToDatabaseDate } from "@/lib/date";
 import { capitalizeFirstLetter, getCopy, type SiteLanguage } from "@/lib/i18n";
 import { BOOKING_SLOTS, type BookingSlotValue } from "@/lib/booking-slot";
-import { MAX_CUSTOM_WEATHER_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
+import { MAX_CUSTOM_WEATHER_LENGTH, MAX_OCCASION_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
 
 export type CalendarDay = {
   isoDate: string;
@@ -32,6 +32,7 @@ export type DayBooking = {
   weatherLabel: string;
   weatherSource: WeatherSource;
   bookedBy: string;
+  occasion: string | null;
 };
 
 export type BookingFormState = {
@@ -78,6 +79,7 @@ function getBookingSchema(language: SiteLanguage) {
       weatherMode: z.enum(["preset", "custom"]),
       weatherPreset: z.string().trim().optional(),
       customWeather: z.string().trim().max(MAX_CUSTOM_WEATHER_LENGTH, strings.longCustomWeather).optional(),
+      occasion: z.string().trim().max(MAX_OCCASION_LENGTH, strings.longOccasion).optional(),
     })
     .superRefine((value, ctx) => {
       if (value.bookedBy.trim().length < 2) {
@@ -145,6 +147,7 @@ export async function getCalendarMonth(monthKey: string | undefined, language: S
       weatherLabel: booking.weatherLabel,
       weatherSource: booking.weatherSource,
       bookedBy: booking.bookedBy,
+      occasion: booking.occasion,
     });
 
     byDate.set(date, next);
@@ -195,6 +198,7 @@ export async function getDayBookings(isoDate: string) {
     weatherLabel: booking.weatherLabel,
     weatherSource: booking.weatherSource,
     bookedBy: booking.bookedBy,
+    occasion: booking.occasion,
   }));
 }
 
@@ -229,6 +233,7 @@ export function parseBookingForm(formData: FormData, language: SiteLanguage) {
     weatherMode: getStringOrUndefined("weatherMode"),
     weatherPreset: getStringOrUndefined("weatherPreset"),
     customWeather: getStringOrUndefined("customWeather"),
+    occasion: getStringOrUndefined("occasion"),
   });
 }
 
@@ -324,6 +329,7 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
         weatherLabel,
         weatherSource,
         bookedBy: input.bookedBy,
+        occasion: input.occasion || null,
         accessCodeHash: hashAccessCode(accessCode),
       },
     });
@@ -385,6 +391,7 @@ export async function updateBooking(
         weatherLabel,
         weatherSource,
         bookedBy: input.bookedBy,
+        occasion: input.occasion || null,
       },
     });
   });

@@ -79,6 +79,7 @@ With `DISABLE_DATABASE=true`, the app stays in UI-only mode even if `DATABASE_UR
    ```
 
 5. Redeploy on Netlify after adding the environment variable.
+   Netlify is configured to run `prisma migrate deploy` during build, so the shared database schema stays aligned with the deployed app code.
 
 ## What `DATABASE_URL` is
 
@@ -90,10 +91,12 @@ It is the one private Postgres connection string that points both your local app
 - `MORNING` and `AFTERNOON` can both exist on the same date.
 - A taken slot cannot be overwritten.
 - Weather can be chosen from presets or entered as custom text.
+- Bookings can optionally include a longer occasion note that is shown with the saved booking.
 
 ## Netlify notes
 
 - Add `DATABASE_URL` in Netlify environment variables.
+- Add `DIRECT_URL` in Netlify environment variables too, so Prisma migrations can use the session pooler during deploys.
 - Make sure the variable is available to both Builds and Functions.
 - Install the Next.js runtime plugin during deployment if Netlify does not auto-detect it:
 

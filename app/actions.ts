@@ -27,6 +27,15 @@ function getSubmissionErrorMessage(error: unknown, language: ReturnType<typeof p
     return strings.databaseLoginFailed;
   }
 
+  if (
+    message.includes("accesscodehash") ||
+    message.includes("column") ||
+    message.includes("does not exist") ||
+    message.includes("migrate")
+  ) {
+    return strings.databaseSchemaOutdated;
+  }
+
   return error.message;
 }
 
@@ -67,6 +76,8 @@ export async function submitBooking(
       accessCode: created.accessCode,
     };
   } catch (error) {
+    console.error("Booking creation failed", error);
+
     return {
       status: "error",
       message: getSubmissionErrorMessage(error, language),
@@ -92,6 +103,8 @@ export async function verifyBookingCode(
   try {
     await verifyBookingAccess(parsed.data, language);
   } catch (error) {
+    console.error("Booking access verification failed", error);
+
     return {
       status: "error",
       message: getSubmissionErrorMessage(error, language),
@@ -131,6 +144,8 @@ export async function submitBookingUpdate(
   try {
     await updateBooking(parsedAccess.data, parsedBooking.data, language);
   } catch (error) {
+    console.error("Booking update failed", error);
+
     return {
       status: "error",
       message: getSubmissionErrorMessage(error, language),
@@ -163,6 +178,8 @@ export async function submitBookingDelete(
   try {
     await deleteBooking(parsedAccess.data, language);
   } catch (error) {
+    console.error("Booking deletion failed", error);
+
     return {
       status: "error",
       message: getSubmissionErrorMessage(error, language),
