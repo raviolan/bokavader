@@ -75,7 +75,7 @@ const copy = {
     weekdays: ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"],
     inspectDay: "Visa dag",
     selectedDay: "Vald dag",
-    availableBooking: "Tillgänglig för bokning",
+    availableBooking: "Ledig",
     reserveForecast: "Boka väder",
     selectedDayWithDate: (date: string) => `Vald dag: ${date}`,
     name: "Namn",

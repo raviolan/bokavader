@@ -867,7 +867,7 @@ textarea {
 @media (max-width: 767px) {
   .weekday-row,
   .calendar-grid {
-    gap: 5px;
+    gap: 4px;
   }
 
   .weekday {
@@ -876,14 +876,15 @@ textarea {
   }
 
   .day-card {
-    min-height: 96px;
-    padding: 7px;
-    border-radius: 16px;
+    min-height: 74px;
+    padding: 5px;
+    border-radius: 14px;
+    overflow: hidden;
   }
 
   .day-card.selected::after {
-    inset: 5px;
-    border-radius: 11px;
+    inset: 4px;
+    border-radius: 10px;
   }
 
   .day-link,
@@ -897,40 +898,107 @@ textarea {
   }
 
   .day-number {
-    font-size: 0.88rem;
+    font-size: 0.76rem;
   }
 
   .booking-list {
-    gap: 5px;
-    margin-top: 7px;
+    gap: 3px;
+    margin-top: 4px;
   }
 
   .booking-chip {
-    padding: 5px 6px;
-    border-radius: 10px;
-    font-size: 0.62rem;
-    line-height: 1.2;
+    padding: 3px 4px;
+    border-radius: 8px;
+    font-size: 0.52rem;
+    line-height: 1.05;
   }
 
   .booking-chip strong {
-    gap: 4px;
+    gap: 3px;
     min-width: 0;
-    font-size: 0.68rem;
+    font-size: 0.56rem;
   }
 
   .weather-label span,
   .booking-chip-button > span {
-    display: block;
+    display: -webkit-box;
     min-width: 0;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    text-overflow: clip;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .booking-chip-button > span + span {
+    display: none;
+  }
+
+  .weather-icon {
+    width: 11px;
+    height: 11px;
   }
 
   .empty-note {
-    margin-top: 8px;
-    font-size: 0.68rem;
-    line-height: 1.2;
+    margin-top: 6px;
+    font-size: 0.56rem;
+    line-height: 1.05;
+  }
+
+  .day-card.partial-booked {
+    min-height: 74px;
+  }
+
+  .day-card.partial-booked .day-card-header {
+    top: 5px;
+    left: 5px;
+    right: 5px;
+  }
+
+  .partial-booking-list {
+    margin-top: 0;
+  }
+
+  .partial-slot-morning {
+    border-bottom-width: 1px;
+  }
+
+  .partial-booking-chip {
+    padding: 4px 5px;
+    font-size: 0.48rem;
+    line-height: 1.02;
+  }
+
+  .partial-slot-morning .partial-booking-chip {
+    padding-top: 18px;
+  }
+
+  .partial-booking-chip strong {
+    gap: 2px;
+    font-size: 0.52rem;
+  }
+
+  .partial-booking-chip .weather-icon {
+    width: 10px;
+    height: 10px;
+  }
+
+  .partial-booking-chip > span,
+  .partial-booking-chip .weather-label span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: normal;
+  }
+
+  .partial-booking-chip .weather-label span {
+    -webkit-line-clamp: 1;
+  }
+
+  .partial-booking-chip > span {
+    margin-top: 1px;
+    -webkit-line-clamp: 1;
   }
 }
 
