@@ -163,10 +163,8 @@ export function BookingDetailsModal({
                       <input
                         autoComplete="one-time-code"
                         id={`${slotGroupId}-access-code`}
-                        inputMode="numeric"
-                        maxLength={5}
+                        maxLength={128}
                         name="accessCode"
-                        pattern="[0-9]{5}"
                         placeholder={strings.codePlaceholder}
                       />
                     </div>

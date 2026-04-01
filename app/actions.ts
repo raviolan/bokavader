@@ -101,7 +101,13 @@ export async function verifyBookingCode(
   }
 
   try {
-    await verifyBookingAccess(parsed.data, language);
+    const verified = await verifyBookingAccess(parsed.data, language);
+
+    return {
+      status: "success",
+      message: strings.codeAccepted,
+      verifiedCode: verified.verifiedCode,
+    };
   } catch (error) {
     console.error("Booking access verification failed", error);
 
@@ -110,12 +116,6 @@ export async function verifyBookingCode(
       message: getSubmissionErrorMessage(error, language),
     };
   }
-
-  return {
-    status: "success",
-    message: strings.codeAccepted,
-    verifiedCode: parsed.data.accessCode,
-  };
 }
 
 export async function submitBookingUpdate(

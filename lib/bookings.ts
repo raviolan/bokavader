@@ -1,4 +1,4 @@
-import { createHash, randomInt } from "node:crypto";
+import { createHash, createHmac, randomInt } from "node:crypto";
 import { Prisma, WeatherSource } from "@prisma/client";
 import {
   addDays,
@@ -60,12 +60,17 @@ async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
   }
 }
 
+function getBookingAdminCode() {
+  const value = process.env.BOOKING_ADMIN_CODE?.trim();
+  return value ? value : null;
+}
+
 function getBookingCodeSchema(language: SiteLanguage) {
   const strings = getCopy(language);
 
   return z.object({
     bookingId: z.string().trim().min(1, strings.invalidBooking),
-    accessCode: z.string().regex(/^\d{5}$/, strings.invalidCode),
+    accessCode: z.string().trim().min(1, strings.invalidCode).max(128, strings.invalidCode),
   });
 }
 
@@ -286,6 +291,14 @@ function hashAccessCode(accessCode: string) {
   return createHash("sha256").update(accessCode).digest("hex");
 }
 
+function createAdminAccessToken(bookingId: string, adminCode: string) {
+  return `admin:${createHmac("sha256", adminCode).update(bookingId).digest("hex")}`;
+}
+
+function isAdminAccessToken(accessCode: string) {
+  return /^admin:[a-f0-9]{64}$/.test(accessCode);
+}
+
 function generateAccessCode() {
   return String(randomInt(10000, 100000));
 }
@@ -297,6 +310,7 @@ async function verifyBookingAccessCode(
   language: SiteLanguage,
 ) {
   const strings = getCopy(language);
+  const adminCode = getBookingAdminCode();
   const booking = await tx.booking.findUnique({
     where: { id: bookingId },
     select: {
@@ -309,9 +323,25 @@ async function verifyBookingAccessCode(
     throw new Error(strings.bookingMissing);
   }
 
+  if (adminCode && accessCode === adminCode) {
+    return {
+      verifiedCode: createAdminAccessToken(bookingId, adminCode),
+    };
+  }
+
+  if (adminCode && isAdminAccessToken(accessCode) && accessCode === createAdminAccessToken(bookingId, adminCode)) {
+    return {
+      verifiedCode: accessCode,
+    };
+  }
+
   if (booking.accessCodeHash !== hashAccessCode(accessCode)) {
     throw new Error(strings.codeMismatch);
   }
+
+  return {
+    verifiedCode: accessCode,
+  };
 }
 
 export async function verifyBookingAccess(access: z.infer<ReturnType<typeof getBookingCodeSchema>>, language: SiteLanguage) {
@@ -321,7 +351,7 @@ export async function verifyBookingAccess(access: z.infer<ReturnType<typeof getB
   }
 
   return prisma.$transaction(async (tx) => {
-    await verifyBookingAccessCode(tx, access.bookingId, access.accessCode, language);
+    return verifyBookingAccessCode(tx, access.bookingId, access.accessCode, language);
   });
 }
 
