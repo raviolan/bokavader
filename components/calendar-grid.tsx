@@ -65,6 +65,20 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
           const afternoonTone = afternoonBooking
             ? getWeatherTone(afternoonBooking.weatherLabel, afternoonBooking.weatherSource)
             : null;
+          const morningStyle = morningTone
+            ? ({
+                "--slot-surface": morningTone.surface,
+                "--slot-stripe": morningTone.stripe,
+                "--slot-border": morningTone.border,
+              } as CSSProperties)
+            : undefined;
+          const afternoonStyle = afternoonTone
+            ? ({
+                "--slot-surface": afternoonTone.surface,
+                "--slot-stripe": afternoonTone.stripe,
+                "--slot-border": afternoonTone.border,
+              } as CSSProperties)
+            : undefined;
           const cardStyle = hasFullDayBooking && primaryTone
             ? ({
                 "--unavailable-stripe-a": primaryTone.stripe,
@@ -105,29 +119,86 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
                   scroll={false}
                 >
                   <span className="day-number">{format(date, "d")}</span>
-                  <span className="day-link-text">{isSelected ? strings.selectedDay : strings.inspectDay}</span>
                 </Link>
               </div>
 
               {day.bookings.length > 0 ? (
-                <div className="booking-list">
-                  {day.bookings.map((booking) => (
-                    <BookingDetailsModal
-                      booking={booking}
-                      key={booking.id}
-                      language={language}
-                      monthKey={monthKey}
-                      triggerClassName="booking-chip booking-chip-button"
+                isPartialBooked ? (
+                  <div className="booking-list partial-booking-list">
+                    <div
+                      className={[
+                        "partial-slot",
+                        "partial-slot-morning",
+                        morningBooking ? "occupied" : "empty",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={morningStyle}
                     >
-                      <strong className="weather-label">
-                        <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
-                        <span>{translateWeatherLabel(booking.weatherLabel, language)}</span>
-                      </strong>
-                      <span>{getCalendarBookingLabel(booking.slot, booking.bookedBy, language)}</span>
-                      {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
-                    </BookingDetailsModal>
-                  ))}
-                </div>
+                      {morningBooking ? (
+                        <BookingDetailsModal
+                          booking={morningBooking}
+                          key={morningBooking.id}
+                          language={language}
+                          monthKey={monthKey}
+                          triggerClassName="booking-chip booking-chip-button partial-booking-chip"
+                        >
+                          <strong className="weather-label">
+                            <WeatherIcon className="weather-icon" weatherLabel={morningBooking.weatherLabel} />
+                            <span>{translateWeatherLabel(morningBooking.weatherLabel, language)}</span>
+                          </strong>
+                          <span>{getCalendarBookingLabel(morningBooking.slot, morningBooking.bookedBy, language)}</span>
+                        </BookingDetailsModal>
+                      ) : null}
+                    </div>
+
+                    <div
+                      className={[
+                        "partial-slot",
+                        "partial-slot-afternoon",
+                        afternoonBooking ? "occupied" : "empty",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      style={afternoonStyle}
+                    >
+                      {afternoonBooking ? (
+                        <BookingDetailsModal
+                          booking={afternoonBooking}
+                          key={afternoonBooking.id}
+                          language={language}
+                          monthKey={monthKey}
+                          triggerClassName="booking-chip booking-chip-button partial-booking-chip"
+                        >
+                          <strong className="weather-label">
+                            <WeatherIcon className="weather-icon" weatherLabel={afternoonBooking.weatherLabel} />
+                            <span>{translateWeatherLabel(afternoonBooking.weatherLabel, language)}</span>
+                          </strong>
+                          <span>{getCalendarBookingLabel(afternoonBooking.slot, afternoonBooking.bookedBy, language)}</span>
+                        </BookingDetailsModal>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="booking-list">
+                    {day.bookings.map((booking) => (
+                      <BookingDetailsModal
+                        booking={booking}
+                        key={booking.id}
+                        language={language}
+                        monthKey={monthKey}
+                        triggerClassName="booking-chip booking-chip-button"
+                      >
+                        <strong className="weather-label">
+                          <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
+                          <span>{translateWeatherLabel(booking.weatherLabel, language)}</span>
+                        </strong>
+                        <span>{getCalendarBookingLabel(booking.slot, booking.bookedBy, language)}</span>
+                        {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
+                      </BookingDetailsModal>
+                    ))}
+                  </div>
+                )
               ) : (
                 <Link
                   className="empty-note empty-note-link"
