@@ -55,6 +55,12 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
     }
   }, [state.accessCode, state.status]);
 
+  useEffect(() => {
+    if (databaseConfigured && dayBookings.length === 0) {
+      console.log(strings.dbSetupHint);
+    }
+  }, [databaseConfigured, dayBookings.length, strings]);
+
   return (
     <>
       <h2>{strings.reserveForecast}</h2>
@@ -96,6 +102,8 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
           </div>
         </fieldset>
 
+        <p className="hint booking-rules-hint">{strings.bookingRules}</p>
+
         <WeatherPicker
           customWeatherValue={customWeather}
           defaultPreset={WEATHER_PRESETS[0]}
@@ -124,10 +132,6 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
         {!databaseConfigured ? (
           <p className="status-message error" role="status">
             {strings.databaseDisabled}
-          </p>
-        ) : dayBookings.length === 0 ? (
-          <p className="status-message" role="status">
-            {strings.dbSetupHint}
           </p>
         ) : null}
 
@@ -169,8 +173,6 @@ export function BookingForm({ databaseConfigured, dayBookings, language, monthKe
           </div>
         )}
       </div>
-
-      <p className="hint">{strings.bookingRules}</p>
 
       {showConfirmationDialog ? (
         <div

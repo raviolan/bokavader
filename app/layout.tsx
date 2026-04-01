@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Book the Weather",
+  title: "Boka Väder",
   description: "Reserve the weather for fun with a shared public calendar.",
 };
 

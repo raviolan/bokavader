@@ -16,6 +16,10 @@ type WeatherTone = {
   border: string;
 };
 
+type WeatherFaviconSpec = {
+  color: string;
+};
+
 export function getWeatherTone(weatherLabel: string, weatherSource: "PRESET" | "CUSTOM"): WeatherTone {
   if (weatherSource === "CUSTOM") {
     return {
@@ -69,6 +73,47 @@ export function getWeatherTone(weatherLabel: string, weatherSource: "PRESET" | "
         stripe: "rgba(134, 92, 176, 0.24)",
         surface: "rgba(247, 241, 255, 0.96)",
         border: "rgba(134, 92, 176, 0.38)",
+      };
+  }
+}
+
+export function getWeatherFaviconSpec(weatherLabel: string, weatherSource: "PRESET" | "CUSTOM"): WeatherFaviconSpec {
+  if (weatherSource === "CUSTOM") {
+    return {
+      color: "#865cb0",
+    };
+  }
+
+  const normalized = weatherLabel.trim().toLowerCase();
+
+  switch (normalized) {
+    case "sunny":
+      return {
+        color: "#f5a623",
+      };
+    case "rainy":
+      return {
+        color: "#3f7ac4",
+      };
+    case "snowy":
+      return {
+        color: "#74a8c7",
+      };
+    case "cloudy":
+      return {
+        color: "#8f98a6",
+      };
+    case "stormy":
+      return {
+        color: "#2f3d62",
+      };
+    case "windy":
+      return {
+        color: "#4d8f82",
+      };
+    default:
+      return {
+        color: "#865cb0",
       };
   }
 }
