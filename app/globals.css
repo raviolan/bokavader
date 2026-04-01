@@ -521,7 +521,7 @@ textarea {
 
 .partial-booking-chip {
   display: grid;
-  align-content: center;
+  align-content: start;
   min-height: 100%;
   width: 100%;
   height: 100%;
@@ -532,8 +532,24 @@ textarea {
   line-height: 1.2;
 }
 
+.partial-slot-morning .partial-booking-chip {
+  padding-top: 28px;
+}
+
 .partial-booking-chip strong {
+  align-items: flex-start;
   font-size: 0.72rem;
+}
+
+.partial-booking-chip > span,
+.partial-booking-chip .weather-label span {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.partial-booking-chip > span {
+  margin-top: 2px;
 }
 
 .booking-chip strong {
