@@ -31,6 +31,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const selectedLocation = parseSelectedLocation(params);
   const locationQuery = getLocationSearchParams(selectedLocation);
   const calendar = await getCalendarMonth(params.month, language, selectedLocation);
+  const today = new Date();
+  const todayDate = format(today, "yyyy-MM-dd");
+  const todayMonth = format(today, "yyyy-MM");
   const selectedDate =
     typeof params.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.date)
       ? params.date
@@ -72,6 +75,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <p className="subtle">{strings.calendarHelp}</p>
             </div>
             <div className="month-nav">
+              <Link
+                className="today-button"
+                href={buildLocalizedHref(language, { ...locationQuery, month: todayMonth, date: todayDate })}
+                scroll={false}
+              >
+                {strings.backToToday}
+              </Link>
               <Link
                 aria-label={strings.previousMonth}
                 className="nav-button"
