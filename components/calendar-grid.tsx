@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { format, parseISO } from "date-fns";
 
 import { BookingDetailsModal } from "@/components/booking-details-modal";
@@ -10,6 +11,7 @@ import {
   translateWeatherLabel,
   type SiteLanguage,
 } from "@/lib/i18n";
+import { getWeatherTone } from "@/lib/weather";
 import { WeatherIcon } from "@/components/weather-icon";
 
 type CalendarGridProps = {
@@ -35,6 +37,29 @@ export function CalendarGrid({ days, language, monthKey, selectedDate }: Calenda
         {days.map((day) => {
           const date = parseISO(day.isoDate);
           const isSelected = day.isoDate === selectedDate;
+          const hasFullDayBooking = day.bookings.some((booking) => booking.slot === "FULL_DAY");
+          const hasMorningBooking = day.bookings.some((booking) => booking.slot === "MORNING");
+          const hasAfternoonBooking = day.bookings.some((booking) => booking.slot === "AFTERNOON");
+          const isUnavailable = hasFullDayBooking || (hasMorningBooking && hasAfternoonBooking);
+          const unavailableBookings = isUnavailable
+            ? hasFullDayBooking
+              ? day.bookings.filter((booking) => booking.slot === "FULL_DAY")
+              : day.bookings.filter((booking) => booking.slot === "MORNING" || booking.slot === "AFTERNOON")
+            : [];
+          const primaryTone = unavailableBookings[0]
+            ? getWeatherTone(unavailableBookings[0].weatherLabel, unavailableBookings[0].weatherSource)
+            : null;
+          const secondaryTone = unavailableBookings[1]
+            ? getWeatherTone(unavailableBookings[1].weatherLabel, unavailableBookings[1].weatherSource)
+            : primaryTone;
+          const unavailableStyle = primaryTone
+            ? ({
+                "--unavailable-stripe-a": primaryTone.stripe,
+                "--unavailable-stripe-b": secondaryTone?.stripe ?? primaryTone.stripe,
+                "--unavailable-surface": primaryTone.surface,
+                "--unavailable-border": primaryTone.border,
+              } as CSSProperties)
+            : undefined;
 
           return (
             <div
@@ -42,11 +67,13 @@ export function CalendarGrid({ days, language, monthKey, selectedDate }: Calenda
                 "day-card",
                 day.inMonth ? "" : "muted",
                 day.bookings.length > 0 ? "booked" : "",
+                isUnavailable ? "unavailable" : "",
                 isSelected ? "selected" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               key={day.isoDate}
+              style={unavailableStyle}
             >
               <div className="day-card-header">
                 <Link

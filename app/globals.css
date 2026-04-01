@@ -138,6 +138,7 @@ textarea {
 
 .page-grid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   margin-top: 18px;
 }
@@ -156,6 +157,11 @@ textarea {
 
 .booking-panel {
   padding: 18px;
+}
+
+.page-grid > .calendar-panel,
+.page-grid > .booking-panel {
+  width: 100%;
 }
 
 .section-header {
@@ -262,6 +268,43 @@ textarea {
   background:
     linear-gradient(180deg, rgba(246, 211, 101, 0.1), rgba(91, 124, 153, 0.08)),
     rgba(255, 255, 255, 0.82);
+}
+
+.day-card.unavailable {
+  border-color: var(--unavailable-border, rgba(196, 87, 77, 0.42));
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      var(--unavailable-stripe-a, rgba(196, 87, 77, 0.12)) 0,
+      var(--unavailable-stripe-a, rgba(196, 87, 77, 0.12)) 8px,
+      transparent 8px,
+      transparent 16px,
+      var(--unavailable-stripe-b, rgba(196, 87, 77, 0.12)) 16px,
+      var(--unavailable-stripe-b, rgba(196, 87, 77, 0.12)) 24px,
+      transparent 24px,
+      transparent 32px
+    ),
+    var(--unavailable-surface, rgba(255, 250, 248, 0.96));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--unavailable-border, rgba(196, 87, 77, 0.42)) 26%, transparent);
+}
+
+.day-card.selected.unavailable {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      var(--unavailable-stripe-a, rgba(196, 87, 77, 0.16)) 0,
+      var(--unavailable-stripe-a, rgba(196, 87, 77, 0.16)) 8px,
+      transparent 8px,
+      transparent 16px,
+      var(--unavailable-stripe-b, rgba(196, 87, 77, 0.16)) 16px,
+      var(--unavailable-stripe-b, rgba(196, 87, 77, 0.16)) 24px,
+      transparent 24px,
+      transparent 32px
+    ),
+    var(--unavailable-surface, rgba(255, 252, 246, 0.98));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--unavailable-border, rgba(196, 87, 77, 0.42)) 34%, transparent),
+    0 10px 24px color-mix(in srgb, var(--unavailable-border, rgba(196, 87, 77, 0.42)) 24%, transparent);
 }
 
 .day-card.selected.booked {
@@ -587,6 +630,76 @@ textarea {
 
 .confirmation-dialog__body p {
   margin: 0;
+}
+
+@media (max-width: 767px) {
+  .weekday-row,
+  .calendar-grid {
+    gap: 5px;
+  }
+
+  .weekday {
+    font-size: 0.68rem;
+    letter-spacing: 0.03em;
+  }
+
+  .day-card {
+    min-height: 96px;
+    padding: 7px;
+    border-radius: 16px;
+  }
+
+  .day-card.selected::after {
+    inset: 5px;
+    border-radius: 11px;
+  }
+
+  .day-link,
+  .weather-label,
+  .booking-chip-button {
+    min-width: 0;
+  }
+
+  .day-link-text {
+    display: none;
+  }
+
+  .day-number {
+    font-size: 0.88rem;
+  }
+
+  .booking-list {
+    gap: 5px;
+    margin-top: 7px;
+  }
+
+  .booking-chip {
+    padding: 5px 6px;
+    border-radius: 10px;
+    font-size: 0.62rem;
+    line-height: 1.2;
+  }
+
+  .booking-chip strong {
+    gap: 4px;
+    min-width: 0;
+    font-size: 0.68rem;
+  }
+
+  .weather-label span,
+  .booking-chip-button > span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .empty-note {
+    margin-top: 8px;
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
 }
 
 @media (min-width: 768px) {
