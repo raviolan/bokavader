@@ -115,3 +115,9 @@ It is the one private Postgres connection string that points both your local app
   ```
 
 - The app is already structured around a shared database, so bookings stay globally visible after deployment.
+
+## Supabase security note
+
+- Enable Row Level Security on the `Booking` table.
+- This app reads and writes bookings through the server-side Prisma connection, not through the public Supabase client APIs.
+- With RLS enabled and no public policies added, anonymous access through the Supabase Data API is blocked while the app can continue using its private database connection.
