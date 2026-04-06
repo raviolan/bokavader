@@ -26,6 +26,27 @@ const LOCATION_LABEL_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bAkersberga\b/gi, "Åkersberga"],
 ];
 
+const LOCATION_SLUG_ALIAS_GROUPS = [
+  ["sweden", "sverige"],
+  ["gothenburg", "goteborg"],
+  ["scania", "skane"],
+  ["vastra-gotalands-lan", "vastra-gotaland", "vastra-gotaland-county"],
+] as const;
+
+const LOCATION_SLUG_CANONICAL_MAP = new Map<string, string>();
+const LOCATION_SLUG_ALIAS_MAP = new Map<string, string[]>();
+
+for (const group of LOCATION_SLUG_ALIAS_GROUPS) {
+  const canonical = group[0];
+  const aliases = [...new Set(group)];
+
+  LOCATION_SLUG_ALIAS_MAP.set(canonical, aliases);
+
+  for (const alias of aliases) {
+    LOCATION_SLUG_CANONICAL_MAP.set(alias, canonical);
+  }
+}
+
 type LocationShape = {
   countryCode: string;
   countryName: string;
@@ -35,13 +56,15 @@ type LocationShape = {
 };
 
 function slugifyLocationPart(value: string) {
-  return value
+  const slug = value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .replace(/-{2,}/g, "-");
+
+  return LOCATION_SLUG_CANONICAL_MAP.get(slug) ?? slug;
 }
 
 function buildCountryKey(countryCode: string, countryName: string) {
@@ -87,6 +110,74 @@ function uniqueParts(parts: Array<string | undefined>) {
     seen.add(dedupeKey);
     return true;
   });
+}
+
+function uniqueKeys(values: string[]) {
+  return [...new Set(values)];
+}
+
+export function canonicalizeLocationKey(key: string) {
+  const parts = key.split(":");
+
+  if (parts.length < 3) {
+    return key;
+  }
+
+  const [scope, countryCode, ...segments] = parts;
+
+  if (scope === "country" || scope === "region" || scope === "city") {
+    return [scope, countryCode, ...segments.map((segment) => LOCATION_SLUG_CANONICAL_MAP.get(segment) ?? segment)].join(":");
+  }
+
+  return key;
+}
+
+export function canonicalizeLocationPath(path: string[]) {
+  return uniqueKeys(path.map(canonicalizeLocationKey));
+}
+
+function getLocationSlugAliases(slug: string) {
+  const canonical = LOCATION_SLUG_CANONICAL_MAP.get(slug) ?? slug;
+  return LOCATION_SLUG_ALIAS_MAP.get(canonical) ?? [canonical];
+}
+
+export function expandLocationKeyAliases(key: string) {
+  const canonicalKey = canonicalizeLocationKey(key);
+  const parts = canonicalKey.split(":");
+
+  if (parts.length < 3) {
+    return [canonicalKey];
+  }
+
+  const [scope, countryCode, ...segments] = parts;
+
+  if (scope === "country" && segments.length === 1) {
+    return getLocationSlugAliases(segments[0]).map((segment) => `${scope}:${countryCode}:${segment}`);
+  }
+
+  if (scope === "region" && segments.length === 1) {
+    return getLocationSlugAliases(segments[0]).map((segment) => `${scope}:${countryCode}:${segment}`);
+  }
+
+  if (scope === "city" && segments.length === 1) {
+    return getLocationSlugAliases(segments[0]).map((segment) => `${scope}:${countryCode}:${segment}`);
+  }
+
+  if (scope === "city" && segments.length === 2) {
+    const [regionSlug, citySlug] = segments;
+    const regionAliases = getLocationSlugAliases(regionSlug);
+    const cityAliases = getLocationSlugAliases(citySlug);
+
+    return uniqueKeys(
+      regionAliases.flatMap((regionAlias) => cityAliases.map((cityAlias) => `${scope}:${countryCode}:${regionAlias}:${cityAlias}`)),
+    );
+  }
+
+  return [canonicalKey];
+}
+
+export function expandLocationPathAliases(path: string[]) {
+  return uniqueKeys(canonicalizeLocationPath(path).flatMap(expandLocationKeyAliases));
 }
 
 export function normalizeLocationLabel(label: string) {
@@ -177,16 +268,18 @@ export function parseSelectedLocation(input: {
   }
 
   const path = parseLocationPath(input.locationPath);
+  const canonicalKey = canonicalizeLocationKey(input.locationKey);
+  const canonicalPath = path ? canonicalizeLocationPath(path) : null;
 
-  if (!path || !path.includes(input.locationKey)) {
+  if (!canonicalPath || !canonicalPath.includes(canonicalKey)) {
     return DEFAULT_LOCATION;
   }
 
   return {
-    key: input.locationKey,
+    key: canonicalKey,
     label: normalizeLocationLabel(input.locationLabel),
     scope: input.locationScope,
-    path,
+    path: canonicalPath,
   } satisfies SelectedLocation;
 }
 
@@ -200,10 +293,13 @@ export function hasLocationSearchParams(input: {
 }
 
 export function getLocationSearchParams(location: SelectedLocation) {
+  const canonicalPath = canonicalizeLocationPath(location.path);
+  const canonicalKey = canonicalizeLocationKey(location.key);
+
   return {
-    locationKey: location.key,
+    locationKey: canonicalKey,
     locationLabel: location.label,
-    locationPath: serializeLocationPath(location.path),
+    locationPath: serializeLocationPath(canonicalPath),
     locationScope: location.scope,
   };
 }
@@ -234,10 +330,17 @@ export function deserializeSelectedLocation(value: string) {
       return null;
     }
 
+    const canonicalKey = canonicalizeLocationKey(parsed.key);
+    const canonicalPath = canonicalizeLocationPath(parsed.path);
+
+    if (!canonicalPath.includes(canonicalKey)) {
+      return null;
+    }
+
     return {
-      key: parsed.key,
+      key: canonicalKey,
       label: normalizeLocationLabel(parsed.label),
-      path: parsed.path,
+      path: canonicalPath,
       scope: parsed.scope,
     } satisfies SelectedLocation;
   } catch {

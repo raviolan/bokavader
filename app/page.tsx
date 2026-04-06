@@ -48,10 +48,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const todayDate = format(today, "yyyy-MM-dd");
   const todayMonth = format(today, "yyyy-MM");
   const monthStart = resolveCalendarMonthStart(params.month);
+  const monthKey = format(monthStart, "yyyy-MM");
   const selectedDate =
     typeof params.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.date)
       ? params.date
-      : format(monthStart, "yyyy-MM-dd");
+      : monthKey === todayMonth
+        ? todayDate
+        : format(monthStart, "yyyy-MM-dd");
   const [calendar, dayBookings] = await Promise.all([
     getCalendarMonth(params.month, language, selectedLocation),
     getDayBookings(selectedDate, selectedLocation),

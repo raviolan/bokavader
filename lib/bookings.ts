@@ -16,7 +16,15 @@ import { prisma } from "@/lib/prisma";
 import { isDatabaseEnabled } from "@/lib/prisma";
 import { formatDatabaseDateToIso, parseIsoDateToDatabaseDate } from "@/lib/date";
 import { capitalizeFirstLetter, getCopy, type SiteLanguage } from "@/lib/i18n";
-import { normalizeLocationLabel, parseLocationPath, type SelectedLocation } from "@/lib/location";
+import {
+  canonicalizeLocationKey,
+  canonicalizeLocationPath,
+  expandLocationKeyAliases,
+  expandLocationPathAliases,
+  normalizeLocationLabel,
+  parseLocationPath,
+  type SelectedLocation,
+} from "@/lib/location";
 import { BOOKING_SLOTS, type BookingSlotValue } from "@/lib/booking-slot";
 import { convertTemperatureToCelsius, parseTemperatureUnit } from "@/lib/temperature";
 import { MAX_CUSTOM_WEATHER_LENGTH, MAX_OCCASION_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
@@ -174,6 +182,7 @@ export async function getCalendarMonth(
   const visibleEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const visibleStartDate = parseIsoDateToDatabaseDate(format(visibleStart, "yyyy-MM-dd"));
   const visibleEndDate = parseIsoDateToDatabaseDate(format(visibleEnd, "yyyy-MM-dd"));
+  const locationAliases = expandLocationPathAliases(location.path);
 
   const bookings = isDatabaseEnabled
     ? await findManySafely(
@@ -185,7 +194,7 @@ export async function getCalendarMonth(
                 lte: visibleEndDate,
               },
               locationKey: {
-                in: location.path,
+                in: locationAliases,
               },
             },
             orderBy: [{ bookingDate: "asc" }, { slot: "asc" }, { createdAt: "asc" }],
@@ -203,9 +212,9 @@ export async function getCalendarMonth(
     next.push({
       id: booking.id,
       date,
-      locationKey: booking.locationKey,
+      locationKey: canonicalizeLocationKey(booking.locationKey),
       locationLabel: normalizeLocationLabel(booking.locationLabel),
-      locationPath: booking.locationPath,
+      locationPath: canonicalizeLocationPath(booking.locationPath),
       locationScope: booking.locationScope,
       slot: booking.slot,
       weatherLabel: booking.weatherLabel,
@@ -245,6 +254,7 @@ export async function getCalendarMonth(
 
 export async function getDayBookings(isoDate: string, location: SelectedLocation) {
   const date = parseIsoDateToDatabaseDate(isoDate);
+  const locationAliases = expandLocationPathAliases(location.path);
 
   const bookings = isDatabaseEnabled
     ? await findManySafely(
@@ -253,7 +263,7 @@ export async function getDayBookings(isoDate: string, location: SelectedLocation
             where: {
               bookingDate: date,
               locationKey: {
-                in: location.path,
+                in: locationAliases,
               },
             },
             orderBy: [{ slot: "asc" }, { createdAt: "asc" }],
@@ -265,9 +275,9 @@ export async function getDayBookings(isoDate: string, location: SelectedLocation
   return bookings.map((booking) => ({
     id: booking.id,
     date: isoDate,
-    locationKey: booking.locationKey,
+    locationKey: canonicalizeLocationKey(booking.locationKey),
     locationLabel: normalizeLocationLabel(booking.locationLabel),
-    locationPath: booking.locationPath,
+    locationPath: canonicalizeLocationPath(booking.locationPath),
     locationScope: booking.locationScope,
     slot: booking.slot,
     weatherLabel: booking.weatherLabel,
@@ -416,10 +426,14 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
   const bookingDate = parseIsoDateToDatabaseDate(input.date);
   const { weatherLabel, weatherSource } = getWeatherPayload(input);
   const accessCode = generateAccessCode();
-  const locationPath = parseLocationPath(input.locationPath);
+  const rawLocationPath = parseLocationPath(input.locationPath);
+  const locationKey = canonicalizeLocationKey(input.locationKey);
+  const locationPath = rawLocationPath ? canonicalizeLocationPath(rawLocationPath) : null;
   const temperatureC = convertTemperatureToCelsius(input.temperature, parseTemperatureUnit(input.temperatureUnit));
+  const locationPathAliases = locationPath ? expandLocationPathAliases(locationPath) : null;
+  const locationKeyAliases = expandLocationKeyAliases(locationKey);
 
-  if (!locationPath || !locationPath.includes(input.locationKey)) {
+  if (!locationPath || !locationPath.includes(locationKey) || !locationPathAliases) {
     throw new Error(strings.invalidBooking);
   }
 
@@ -430,12 +444,12 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
         OR: [
           {
             locationKey: {
-              in: locationPath,
+              in: locationPathAliases,
             },
           },
           {
             locationPath: {
-              has: input.locationKey,
+              hasSome: locationKeyAliases,
             },
           },
         ],
@@ -460,7 +474,7 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
     return tx.booking.create({
       data: {
         bookingDate,
-        locationKey: input.locationKey,
+        locationKey,
         locationLabel: normalizeLocationLabel(input.locationLabel),
         locationPath,
         locationScope: input.locationScope,
@@ -494,10 +508,14 @@ export async function updateBooking(
 
   const bookingDate = parseIsoDateToDatabaseDate(input.date);
   const { weatherLabel, weatherSource } = getWeatherPayload(input);
-  const locationPath = parseLocationPath(input.locationPath);
+  const rawLocationPath = parseLocationPath(input.locationPath);
+  const locationKey = canonicalizeLocationKey(input.locationKey);
+  const locationPath = rawLocationPath ? canonicalizeLocationPath(rawLocationPath) : null;
   const temperatureC = convertTemperatureToCelsius(input.temperature, parseTemperatureUnit(input.temperatureUnit));
+  const locationPathAliases = locationPath ? expandLocationPathAliases(locationPath) : null;
+  const locationKeyAliases = expandLocationKeyAliases(locationKey);
 
-  if (!locationPath || !locationPath.includes(input.locationKey)) {
+  if (!locationPath || !locationPath.includes(locationKey) || !locationPathAliases) {
     throw new Error(strings.invalidBooking);
   }
 
@@ -510,12 +528,12 @@ export async function updateBooking(
         OR: [
           {
             locationKey: {
-              in: locationPath,
+              in: locationPathAliases,
             },
           },
           {
             locationPath: {
-              has: input.locationKey,
+              hasSome: locationKeyAliases,
             },
           },
         ],
@@ -546,7 +564,7 @@ export async function updateBooking(
       },
       data: {
         bookingDate,
-        locationKey: input.locationKey,
+        locationKey,
         locationLabel: normalizeLocationLabel(input.locationLabel),
         locationPath,
         locationScope: input.locationScope,
