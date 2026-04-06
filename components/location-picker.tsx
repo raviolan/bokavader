@@ -7,15 +7,17 @@ import { getCopy, type SiteLanguage } from "@/lib/i18n";
 import {
   DEFAULT_LOCATION,
   deserializeSelectedLocation,
-  getLocationSearchParams,
+  encodeSelectedLocationCookie,
+  hasLocationSearchParams,
+  LOCATION_COOKIE_KEY,
   LOCATION_STORAGE_KEY,
   serializeSelectedLocation,
   type SelectedLocation,
 } from "@/lib/location";
 
 type LocationPickerProps = {
-  hasExplicitLocation: boolean;
   language: SiteLanguage;
+  locationSource: "url" | "cookie" | "default";
   selectedLocation: SelectedLocation;
 };
 
@@ -23,7 +25,14 @@ type LocationSearchResponse = {
   results: SelectedLocation[];
 };
 
-export function LocationPicker({ hasExplicitLocation, language, selectedLocation }: LocationPickerProps) {
+const LOCATION_SEARCH_PARAM_KEYS = ["locationKey", "locationLabel", "locationPath", "locationScope"] as const;
+
+function persistLocation(location: SelectedLocation) {
+  window.localStorage.setItem(LOCATION_STORAGE_KEY, serializeSelectedLocation(location));
+  document.cookie = `${LOCATION_COOKIE_KEY}=${encodeSelectedLocationCookie(location)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+}
+
+export function LocationPicker({ language, locationSource, selectedLocation }: LocationPickerProps) {
   const strings = getCopy(language);
   const pathname = usePathname();
   const router = useRouter();
@@ -39,33 +48,78 @@ export function LocationPicker({ hasExplicitLocation, language, selectedLocation
   }, [selectedLocation.label]);
 
   useEffect(() => {
-    if (hasExplicitLocation) {
-      window.localStorage.setItem(LOCATION_STORAGE_KEY, serializeSelectedLocation(selectedLocation));
+    if (locationSource === "default") {
+      return;
+    }
+
+    persistLocation(selectedLocation);
+  }, [locationSource, selectedLocation]);
+
+  useEffect(() => {
+    const cleanParams = new URLSearchParams(searchParams.toString());
+    let hadLegacyLocationParams = false;
+
+    for (const key of LOCATION_SEARCH_PARAM_KEYS) {
+      if (cleanParams.has(key)) {
+        cleanParams.delete(key);
+        hadLegacyLocationParams = true;
+      }
+    }
+
+    if (locationSource === "url") {
+      if (!hadLegacyLocationParams) {
+        return;
+      }
+
+      const nextHref = cleanParams.size > 0 ? `${pathname}?${cleanParams.toString()}` : pathname;
+
+      startTransition(() => {
+        router.replace(nextHref as never, { scroll: false });
+      });
+
+      return;
+    }
+
+    if (locationSource !== "default") {
       return;
     }
 
     const stored = window.localStorage.getItem(LOCATION_STORAGE_KEY);
 
     if (!stored) {
+      if (!hadLegacyLocationParams) {
+        return;
+      }
+
+      const nextHref = cleanParams.size > 0 ? `${pathname}?${cleanParams.toString()}` : pathname;
+
+      startTransition(() => {
+        router.replace(nextHref as never, { scroll: false });
+      });
       return;
     }
 
     const persistedLocation = deserializeSelectedLocation(stored);
 
     if (!persistedLocation || persistedLocation.key === selectedLocation.key) {
+      if (!hadLegacyLocationParams) {
+        return;
+      }
+
+      const nextHref = cleanParams.size > 0 ? `${pathname}?${cleanParams.toString()}` : pathname;
+
+      startTransition(() => {
+        router.replace(nextHref as never, { scroll: false });
+      });
       return;
     }
 
-    const params = new URLSearchParams(searchParams.toString());
-
-    for (const [key, value] of Object.entries(getLocationSearchParams(persistedLocation))) {
-      params.set(key, value);
-    }
+    persistLocation(persistedLocation);
 
     startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}` as never, { scroll: false });
+      router.refresh();
     });
-  }, [hasExplicitLocation, pathname, router, searchParams, selectedLocation]);
+  }, [locationSource, pathname, router, searchParams, selectedLocation]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -111,15 +165,28 @@ export function LocationPicker({ hasExplicitLocation, language, selectedLocation
     if (location.key === selectedLocation.key) {
       return;
     }
-
     const params = new URLSearchParams(searchParams.toString());
+    const hasLegacyLocationParams = hasLocationSearchParams({
+      locationKey: params.get("locationKey") ?? undefined,
+      locationLabel: params.get("locationLabel") ?? undefined,
+      locationPath: params.get("locationPath") ?? undefined,
+      locationScope: params.get("locationScope") ?? undefined,
+    });
 
-    for (const [key, value] of Object.entries(getLocationSearchParams(location))) {
-      params.set(key, value);
-    }
+    persistLocation(location);
 
     startTransition(() => {
-      router.replace(`${pathname}?${params.toString()}` as never, { scroll: false });
+      if (hasLegacyLocationParams) {
+        for (const key of LOCATION_SEARCH_PARAM_KEYS) {
+          params.delete(key);
+        }
+
+        const nextHref = params.size > 0 ? `${pathname}?${params.toString()}` : pathname;
+        router.replace(nextHref as never, { scroll: false });
+        return;
+      }
+
+      router.refresh();
     });
   }
 
@@ -131,7 +198,6 @@ export function LocationPicker({ hasExplicitLocation, language, selectedLocation
       return;
     }
 
-    window.localStorage.setItem(LOCATION_STORAGE_KEY, serializeSelectedLocation(location));
     setQuery(location.label);
     setResults([]);
     setOpen(false);

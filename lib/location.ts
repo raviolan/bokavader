@@ -1,4 +1,5 @@
 export const LOCATION_STORAGE_KEY = "bokavader:selected-location";
+export const LOCATION_COOKIE_KEY = "bokavader-location";
 
 export const LOCATION_SCOPES = ["country", "region", "city"] as const;
 
@@ -189,6 +190,15 @@ export function parseSelectedLocation(input: {
   } satisfies SelectedLocation;
 }
 
+export function hasLocationSearchParams(input: {
+  locationKey?: string;
+  locationLabel?: string;
+  locationPath?: string;
+  locationScope?: string;
+}) {
+  return Boolean(input.locationKey || input.locationLabel || input.locationPath || input.locationScope);
+}
+
 export function getLocationSearchParams(location: SelectedLocation) {
   return {
     locationKey: location.key,
@@ -200,6 +210,10 @@ export function getLocationSearchParams(location: SelectedLocation) {
 
 export function serializeSelectedLocation(location: SelectedLocation) {
   return JSON.stringify(location);
+}
+
+export function encodeSelectedLocationCookie(location: SelectedLocation) {
+  return encodeURIComponent(serializeSelectedLocation(location));
 }
 
 export function deserializeSelectedLocation(value: string) {
@@ -226,6 +240,18 @@ export function deserializeSelectedLocation(value: string) {
       path: parsed.path,
       scope: parsed.scope,
     } satisfies SelectedLocation;
+  } catch {
+    return null;
+  }
+}
+
+export function decodeSelectedLocationCookie(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return deserializeSelectedLocation(decodeURIComponent(value));
   } catch {
     return null;
   }

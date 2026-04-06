@@ -8,7 +8,9 @@ import type { BookingFormState, DayBooking } from "@/lib/bookings";
 import { BOOKING_SLOTS } from "@/lib/booking-slot";
 import { getCopy, getSlotLabel, translateWeatherLabel, type SiteLanguage } from "@/lib/i18n";
 import { serializeLocationPath, type SelectedLocation } from "@/lib/location";
+import { formatTemperatureValue } from "@/lib/temperature";
 import { WEATHER_PRESETS } from "@/lib/weather";
+import { WeatherMetricsFields } from "@/components/weather-metrics-fields";
 import { WeatherPicker } from "@/components/weather-picker";
 import { WeatherIcon } from "@/components/weather-icon";
 
@@ -123,6 +125,8 @@ export function BookingForm({
           presetValue={weatherPreset}
         />
 
+        <WeatherMetricsFields language={language} />
+
         <div className="field">
           <label htmlFor="occasion">{strings.occasion}</label>
           <textarea
@@ -157,23 +161,38 @@ export function BookingForm({
       <div className="side-list">
         {dayBookings.length > 0 ? (
           dayBookings.map((booking) => (
-            <BookingDetailsModal
-              bookings={[booking]}
-              key={booking.id}
-              language={language}
-              monthKey={monthKey}
-              triggerClassName="side-item side-item-button"
-            >
-              <strong className="weather-label">
-                <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
-                <span>
-                  {getSlotLabel(booking.slot, language)}: {translateWeatherLabel(booking.weatherLabel, language)}
-                </span>
-              </strong>
-              <span>{strings.reservedBy(booking.bookedBy)}</span>
-              {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
-              {booking.occasion ? <span className="booking-occasion">{booking.occasion}</span> : null}
-            </BookingDetailsModal>
+            (() => {
+              const temperatureC = typeof booking.temperatureC === "number" ? booking.temperatureC : null;
+              const windSpeedMps = typeof booking.windSpeedMps === "number" ? booking.windSpeedMps : null;
+
+              return (
+                <BookingDetailsModal
+                  bookings={[booking]}
+                  key={booking.id}
+                  language={language}
+                  monthKey={monthKey}
+                  triggerClassName="side-item side-item-button"
+                >
+                  <strong className="weather-label">
+                    <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
+                    <span>
+                      {getSlotLabel(booking.slot, language)}: {translateWeatherLabel(booking.weatherLabel, language)}
+                    </span>
+                  </strong>
+                  {temperatureC !== null && windSpeedMps !== null ? (
+                    <span>
+                      {strings.weatherMetricsSummary(
+                        `${formatTemperatureValue(temperatureC)}\u00b0C`,
+                        `${formatTemperatureValue(windSpeedMps)} ${strings.windUnit}`,
+                      )}
+                    </span>
+                  ) : null}
+                  <span>{strings.reservedBy(booking.bookedBy)}</span>
+                  {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
+                  {booking.occasion ? <span className="booking-occasion">{booking.occasion}</span> : null}
+                </BookingDetailsModal>
+              );
+            })()
           ))
         ) : (
           <div className="side-item">

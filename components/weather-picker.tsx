@@ -79,22 +79,23 @@ export function WeatherPicker({
         </div>
       </fieldset>
 
-      <div className="field">
-        <label htmlFor={presetSelectId}>{strings.presetWeather}</label>
-        <select
-          disabled={mode !== "preset"}
-          id={presetSelectId}
-          name="weatherPreset"
-          onChange={(event) => onPresetChange?.(event.target.value)}
-          value={resolvedPresetValue}
-        >
-          {WEATHER_PRESETS.map((preset) => (
-            <option key={preset} value={preset}>
-              {translateWeatherLabel(preset, language)}
-            </option>
-          ))}
-        </select>
-      </div>
+      {mode === "preset" ? (
+        <div className="field">
+          <label htmlFor={presetSelectId}>{strings.presetWeather}</label>
+          <select
+            id={presetSelectId}
+            name="weatherPreset"
+            onChange={(event) => onPresetChange?.(event.target.value)}
+            value={resolvedPresetValue}
+          >
+            {WEATHER_PRESETS.map((preset) => (
+              <option key={preset} value={preset}>
+                {translateWeatherLabel(preset, language)}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       {mode === "custom" ? (
         <div className="field">

@@ -27,6 +27,8 @@ model Booking {
   slot           BookingSlot
   weatherLabel   String
   weatherSource  WeatherSource
+  temperatureC   Float?
+  windSpeedMps   Float?
   bookedBy       String
   occasion       String?
   accessCodeHash String

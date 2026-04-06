@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
@@ -6,9 +7,16 @@ import { BookingForm } from "@/components/booking-form";
 import { CalendarGrid } from "@/components/calendar-grid";
 import { getCalendarMonth, getDayBookings, resolveCalendarMonthStart } from "@/lib/bookings";
 import { buildLocalizedHref, getCopy, parseLanguage } from "@/lib/i18n";
-import { getLocationSearchParams, parseSelectedLocation } from "@/lib/location";
+import {
+  DEFAULT_LOCATION,
+  decodeSelectedLocationCookie,
+  hasLocationSearchParams,
+  LOCATION_COOKIE_KEY,
+  parseSelectedLocation,
+} from "@/lib/location";
 import { isDatabaseEnabled } from "@/lib/prisma";
 import { LocationPicker } from "@/components/location-picker";
+import { TemperatureUnitToggle } from "@/components/temperature-unit-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +34,13 @@ type HomePageProps = {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = (await searchParams) ?? {};
+  const cookieStore = await cookies();
   const language = parseLanguage(params.lang);
   const strings = getCopy(language);
-  const selectedLocation = parseSelectedLocation(params);
-  const locationQuery = getLocationSearchParams(selectedLocation);
+  const urlHasLocation = hasLocationSearchParams(params);
+  const cookieLocation = decodeSelectedLocationCookie(cookieStore.get(LOCATION_COOKIE_KEY)?.value);
+  const selectedLocation = urlHasLocation ? parseSelectedLocation(params) : cookieLocation ?? DEFAULT_LOCATION;
+  const locationSource = urlHasLocation ? "url" : cookieLocation ? "cookie" : "default";
   const today = new Date();
   const todayDate = format(today, "yyyy-MM-dd");
   const todayMonth = format(today, "yyyy-MM");
@@ -48,28 +59,31 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <section className="hero">
         <div className="hero-topbar">
           <span className="eyebrow">{strings.eyebrow}</span>
-          <div className="language-switcher" aria-label={strings.languageLabel}>
-            <Link
-              className={`language-button ${language === "sv" ? "active" : ""}`}
-              href={buildLocalizedHref("sv", { ...locationQuery, date: selectedDate, month: calendar.monthKey, lang: "sv" })}
-              prefetch={false}
-              scroll={false}
-            >
-              SV
-            </Link>
-            <Link
-              className={`language-button ${language === "en" ? "active" : ""}`}
-              href={buildLocalizedHref("en", { ...locationQuery, date: selectedDate, month: calendar.monthKey, lang: "en" })}
-              prefetch={false}
-              scroll={false}
-            >
-              EN
-            </Link>
+          <div className="hero-controls">
+            <div className="language-switcher" aria-label={strings.languageLabel}>
+              <Link
+                className={`language-button ${language === "sv" ? "active" : ""}`}
+                href={buildLocalizedHref("sv", { date: selectedDate, month: calendar.monthKey, lang: "sv" })}
+                prefetch={false}
+                scroll={false}
+              >
+                SV
+              </Link>
+              <Link
+                className={`language-button ${language === "en" ? "active" : ""}`}
+                href={buildLocalizedHref("en", { date: selectedDate, month: calendar.monthKey, lang: "en" })}
+                prefetch={false}
+                scroll={false}
+              >
+                EN
+              </Link>
+            </div>
+            <TemperatureUnitToggle language={language} />
           </div>
         </div>
         <h1>{strings.heroTitle}</h1>
         <p>{strings.heroDescription}</p>
-        <LocationPicker hasExplicitLocation={Boolean(params.locationKey)} language={language} selectedLocation={selectedLocation} />
+        <LocationPicker language={language} locationSource={locationSource} selectedLocation={selectedLocation} />
       </section>
 
       <section className="page-grid">
@@ -82,7 +96,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="month-nav">
               <Link
                 className="today-button"
-                href={buildLocalizedHref(language, { ...locationQuery, month: todayMonth, date: todayDate })}
+                href={buildLocalizedHref(language, { month: todayMonth, date: todayDate })}
                 prefetch={false}
                 scroll={false}
               >
@@ -91,7 +105,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <Link
                 aria-label={strings.previousMonth}
                 className="nav-button"
-                href={buildLocalizedHref(language, { ...locationQuery, month: calendar.prevMonthKey, date: selectedDate })}
+                href={buildLocalizedHref(language, { month: calendar.prevMonthKey, date: selectedDate })}
                 prefetch={false}
                 scroll={false}
               >
@@ -100,7 +114,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <Link
                 aria-label={strings.nextMonth}
                 className="nav-button"
-                href={buildLocalizedHref(language, { ...locationQuery, month: calendar.nextMonthKey, date: selectedDate })}
+                href={buildLocalizedHref(language, { month: calendar.nextMonthKey, date: selectedDate })}
                 prefetch={false}
                 scroll={false}
               >

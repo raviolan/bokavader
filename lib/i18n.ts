@@ -1,4 +1,5 @@
 import { enUS, sv } from "date-fns/locale";
+import { format } from "date-fns";
 
 import type { BookingSlotValue } from "@/lib/booking-slot";
 
@@ -12,37 +13,29 @@ export function parseLanguage(value?: string): SiteLanguage {
 
 export function buildLocalizedHref(
   language: SiteLanguage,
-  params: Partial<
-    Record<"month" | "date" | "lang" | "locationKey" | "locationLabel" | "locationPath" | "locationScope", string | undefined>
-  >,
+  params: Partial<Record<"month" | "date" | "lang", string | undefined>>,
 ) {
   const query: Record<string, string> = {};
+  const todayMonth = format(new Date(), "yyyy-MM");
+  const currentLanguage = params.lang ?? language;
+  const monthKey = params.month ?? todayMonth;
+  const defaultDate = `${monthKey}-01`;
 
-  if (params.month) {
+  if (params.month && params.month !== todayMonth) {
     query.month = params.month;
   }
 
-  if (params.date) {
+  if (params.date && params.date !== defaultDate) {
     query.date = params.date;
   }
 
-  if (params.locationKey) {
-    query.locationKey = params.locationKey;
+  if (currentLanguage === "en") {
+    query.lang = "en";
   }
 
-  if (params.locationLabel) {
-    query.locationLabel = params.locationLabel;
+  if (Object.keys(query).length === 0) {
+    return "/";
   }
-
-  if (params.locationPath) {
-    query.locationPath = params.locationPath;
-  }
-
-  if (params.locationScope) {
-    query.locationScope = params.locationScope;
-  }
-
-  query.lang = params.lang ?? language;
 
   return {
     pathname: "/",
@@ -65,6 +58,9 @@ const copy = {
     broaderBooking: (location: string) => `Gäller för ${location}`,
     swedish: "Svenska",
     english: "English",
+    temperatureUnitLabel: "Temperatur",
+    celsius: "Celsius",
+    fahrenheit: "Fahrenheit",
     eyebrow: "Öppen bokningstavla",
     heroTitle: "Boka väder.",
     heroDescription:
@@ -91,6 +87,13 @@ const copy = {
     presetWeather: "Förvalt väder",
     customWeather: "Eget väder",
     customPlaceholder: "Meteorregn, dimmigt sken, grodregn...",
+    temperatureField: "Temperatur",
+    temperaturePlaceholderC: "t.ex. 18",
+    temperaturePlaceholderF: "t.ex. 64",
+    windField: "Vind",
+    windPlaceholder: "t.ex. 6",
+    windUnit: "m/s",
+    weatherMetricsSummary: (temperature: string, wind: string) => `${temperature}, vind ${wind}`,
     occasion: "Anledning",
     occasionPlaceholder: "Varför passar just det här vädret idag?",
     occasionOptional: "Beskriv tillfället om du vill.",
@@ -135,6 +138,9 @@ const copy = {
     chooseListedWeather: "Välj en vädertyp från listan.",
     addCustomWeather: "Lägg till en egen vädertext.",
     longCustomWeather: "Eget väder måste vara kortare än 32 tecken.",
+    invalidTemperature: "Ange en rimlig temperatur.",
+    invalidTemperatureUnit: "Temperaturen måste ha en giltig enhet.",
+    invalidWind: "Ange en rimlig vindstyrka.",
     longOccasion: "Anledningen måste vara kortare än 280 tecken.",
     bookingFailed: "Bokningen misslyckades.",
     databaseLoginFailed: "Databasinloggningen misslyckades. Kontrollera `DATABASE_URL` och pooler-inställningarna.",
@@ -168,6 +174,9 @@ const copy = {
     broaderBooking: (location: string) => `Applies to ${location}`,
     swedish: "Svenska",
     english: "English",
+    temperatureUnitLabel: "Temperature",
+    celsius: "Celsius",
+    fahrenheit: "Fahrenheit",
     eyebrow: "Shared public booking board",
     heroTitle: "Book the weather.",
     heroDescription:
@@ -194,6 +203,13 @@ const copy = {
     presetWeather: "Preset weather",
     customWeather: "Custom weather",
     customPlaceholder: "Meteor shower, misty glow, frog rain...",
+    temperatureField: "Temperature",
+    temperaturePlaceholderC: "e.g. 18",
+    temperaturePlaceholderF: "e.g. 64",
+    windField: "Wind",
+    windPlaceholder: "e.g. 6",
+    windUnit: "m/s",
+    weatherMetricsSummary: (temperature: string, wind: string) => `${temperature}, wind ${wind}`,
     occasion: "Occasion",
     occasionPlaceholder: "Why does this weather fit the moment?",
     occasionOptional: "Describe the occasion if you want to.",
@@ -237,6 +253,9 @@ const copy = {
     chooseListedWeather: "Choose a listed weather type.",
     addCustomWeather: "Add a custom weather label.",
     longCustomWeather: "Custom weather must be under 32 characters.",
+    invalidTemperature: "Enter a reasonable temperature.",
+    invalidTemperatureUnit: "Temperature unit is invalid.",
+    invalidWind: "Enter a reasonable wind speed.",
     longOccasion: "Occasion must be under 280 characters.",
     bookingFailed: "Booking failed.",
     databaseLoginFailed: "Database login failed. Check the `DATABASE_URL` credentials and pooler settings.",

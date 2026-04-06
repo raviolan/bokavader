@@ -11,7 +11,7 @@ import {
   translateWeatherLabel,
   type SiteLanguage,
 } from "@/lib/i18n";
-import { getLocationSearchParams, type SelectedLocation } from "@/lib/location";
+import { type SelectedLocation } from "@/lib/location";
 import { getWeatherTone } from "@/lib/weather";
 import { WeatherIcon } from "@/components/weather-icon";
 
@@ -33,7 +33,6 @@ function getModalBookings(fullDayBooking: DayBooking | undefined, morningBooking
 
 export function CalendarGrid({ days, language, monthKey, selectedDate, selectedLocation }: CalendarGridProps) {
   const strings = getCopy(language);
-  const locationQuery = getLocationSearchParams(selectedLocation);
 
   return (
     <>
@@ -193,7 +192,7 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
                     <Link
                       aria-current={isSelected ? "date" : undefined}
                       className="day-link"
-                      href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
+                      href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}
                       prefetch={false}
                       scroll={false}
                     >
@@ -203,7 +202,7 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
 
                   <Link
                     className="empty-note empty-note-link"
-                    href={buildLocalizedHref(language, { ...locationQuery, month: monthKey, date: day.isoDate })}
+                    href={buildLocalizedHref(language, { month: monthKey, date: day.isoDate })}
                     prefetch={false}
                     scroll={false}
                   >

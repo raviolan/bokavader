@@ -96,6 +96,14 @@ It is the one private Postgres connection string that points both your local app
 - Broader bookings such as `Sweden` appear in narrower calendars such as `Skane` or `Gothenburg`.
 - Weather can be chosen from presets or entered as custom text.
 - Bookings can optionally include a longer occasion note that is shown with the saved booking.
+- The booking's own 5-digit confirmation code can edit or delete that booking later.
+- An admin code can override any booking without the original confirmation code.
+
+## Admin override
+
+- The built-in admin code is `S2207`.
+- If `BOOKING_ADMIN_CODE` is set in the environment, that value overrides `S2207`.
+- The admin code can unlock any existing booking for update or deletion.
 
 ## Location search
 

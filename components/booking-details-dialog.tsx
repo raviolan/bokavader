@@ -4,11 +4,13 @@ import { useActionState, useEffect, useId, useRef, useState, type CSSProperties 
 import { createPortal } from "react-dom";
 
 import { submitBookingDelete, submitBookingUpdate, verifyBookingCode } from "@/app/actions";
+import { WeatherMetricsFields } from "@/components/weather-metrics-fields";
 import { WeatherPicker } from "@/components/weather-picker";
 import type { BookingAccessState, BookingFormState, DayBooking } from "@/lib/bookings";
 import { BOOKING_SLOTS } from "@/lib/booking-slot";
 import { getCopy, getSlotLabel, translateWeatherLabel, type SiteLanguage } from "@/lib/i18n";
 import { serializeLocationPath } from "@/lib/location";
+import { formatTemperatureValue } from "@/lib/temperature";
 import { getWeatherTone } from "@/lib/weather";
 
 const idleAccessState: BookingAccessState = {
@@ -79,6 +81,8 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
   const initialMode = booking.weatherSource === "CUSTOM" ? "custom" : "preset";
   const defaultPreset = initialMode === "preset" ? booking.weatherLabel : "Sunny";
   const initialCustomWeather = initialMode === "custom" ? booking.weatherLabel : "";
+  const temperatureC = typeof booking.temperatureC === "number" ? booking.temperatureC : null;
+  const windSpeedMps = typeof booking.windSpeedMps === "number" ? booking.windSpeedMps : null;
   const tone = getWeatherTone(booking.weatherLabel, booking.weatherSource);
   const toneStyle = {
     "--modal-weather-stripe": tone.stripe,
@@ -93,6 +97,9 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
           <strong>{getSlotLabel(booking.slot, language)}</strong>
         </p>
         <p>{translateWeatherLabel(booking.weatherLabel, language)}</p>
+        {temperatureC !== null && windSpeedMps !== null ? (
+          <p>{strings.weatherMetricsSummary(`${formatTemperatureValue(temperatureC)}\u00b0C`, `${formatTemperatureValue(windSpeedMps)} ${strings.windUnit}`)}</p>
+        ) : null}
         <p>{strings.reservedBy(booking.bookedBy)}</p>
         <p>{strings.broaderBooking(booking.locationLabel)}</p>
         {booking.occasion ? <p className="booking-occasion">{booking.occasion}</p> : null}
@@ -197,6 +204,12 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
               defaultPreset={defaultPreset}
               initialCustomWeather={initialCustomWeather}
               initialMode={initialMode}
+              language={language}
+            />
+
+            <WeatherMetricsFields
+              initialTemperatureC={temperatureC}
+              initialWindSpeedMps={windSpeedMps}
               language={language}
             />
 

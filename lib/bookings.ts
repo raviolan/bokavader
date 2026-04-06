@@ -18,6 +18,7 @@ import { formatDatabaseDateToIso, parseIsoDateToDatabaseDate } from "@/lib/date"
 import { capitalizeFirstLetter, getCopy, type SiteLanguage } from "@/lib/i18n";
 import { normalizeLocationLabel, parseLocationPath, type SelectedLocation } from "@/lib/location";
 import { BOOKING_SLOTS, type BookingSlotValue } from "@/lib/booking-slot";
+import { convertTemperatureToCelsius, parseTemperatureUnit } from "@/lib/temperature";
 import { MAX_CUSTOM_WEATHER_LENGTH, MAX_OCCASION_LENGTH, WEATHER_PRESETS } from "@/lib/weather";
 
 export type CalendarDay = {
@@ -36,6 +37,8 @@ export type DayBooking = {
   slot: BookingSlotValue;
   weatherLabel: string;
   weatherSource: WeatherSource;
+  temperatureC: number | null;
+  windSpeedMps: number | null;
   bookedBy: string;
   occasion: string | null;
 };
@@ -66,10 +69,12 @@ async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
   }
 }
 
+const DEFAULT_BOOKING_ADMIN_CODE = "S2207";
+
 function getBookingAdminCode() {
   const value = process.env.BOOKING_ADMIN_CODE;
   const normalized = value ? normalizeAdminCode(value) : "";
-  return normalized ? normalized : null;
+  return normalized || normalizeAdminCode(DEFAULT_BOOKING_ADMIN_CODE);
 }
 
 function normalizeAdminCode(value: string) {
@@ -91,6 +96,13 @@ function getBookingCodeSchema(language: SiteLanguage) {
 
 function getBookingSchema(language: SiteLanguage) {
   const strings = getCopy(language);
+  const numberField = (message: string) =>
+    z
+      .string()
+      .trim()
+      .min(1, message)
+      .transform((value) => Number(value))
+      .refine((value) => Number.isFinite(value), message);
 
   return z
     .object({
@@ -104,6 +116,11 @@ function getBookingSchema(language: SiteLanguage) {
       weatherMode: z.enum(["preset", "custom"]),
       weatherPreset: z.string().trim().optional(),
       customWeather: z.string().trim().max(MAX_CUSTOM_WEATHER_LENGTH, strings.longCustomWeather).optional(),
+      temperature: numberField(strings.invalidTemperature)
+        .refine((value) => value >= -120 && value <= 140, strings.invalidTemperature),
+      temperatureUnit: z.string().trim().min(1, strings.invalidTemperatureUnit),
+      windSpeedMps: numberField(strings.invalidWind)
+        .refine((value) => value >= 0 && value <= 100, strings.invalidWind),
       occasion: z.string().trim().max(MAX_OCCASION_LENGTH, strings.longOccasion).optional(),
       locationKey: z.string().trim().min(1, strings.invalidBooking),
       locationLabel: z.string().trim().min(1, strings.invalidBooking),
@@ -132,6 +149,14 @@ function getBookingSchema(language: SiteLanguage) {
           code: z.ZodIssueCode.custom,
           message: strings.addCustomWeather,
           path: ["customWeather"],
+        });
+      }
+
+      if (!["c", "f"].includes(value.temperatureUnit)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: strings.invalidTemperatureUnit,
+          path: ["temperatureUnit"],
         });
       }
     });
@@ -185,6 +210,8 @@ export async function getCalendarMonth(
       slot: booking.slot,
       weatherLabel: booking.weatherLabel,
       weatherSource: booking.weatherSource,
+      temperatureC: booking.temperatureC,
+      windSpeedMps: booking.windSpeedMps,
       bookedBy: booking.bookedBy,
       occasion: booking.occasion,
     });
@@ -245,6 +272,8 @@ export async function getDayBookings(isoDate: string, location: SelectedLocation
     slot: booking.slot,
     weatherLabel: booking.weatherLabel,
     weatherSource: booking.weatherSource,
+    temperatureC: booking.temperatureC,
+    windSpeedMps: booking.windSpeedMps,
     bookedBy: booking.bookedBy,
     occasion: booking.occasion,
   }));
@@ -281,6 +310,9 @@ export function parseBookingForm(formData: FormData, language: SiteLanguage) {
     weatherMode: getStringOrUndefined("weatherMode"),
     weatherPreset: getStringOrUndefined("weatherPreset"),
     customWeather: getStringOrUndefined("customWeather"),
+    temperature: getStringOrUndefined("temperature"),
+    temperatureUnit: getStringOrUndefined("temperatureUnit"),
+    windSpeedMps: getStringOrUndefined("windSpeedMps"),
     occasion: getStringOrUndefined("occasion"),
     locationKey: getStringOrUndefined("locationKey"),
     locationLabel: getStringOrUndefined("locationLabel"),
@@ -385,6 +417,7 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
   const { weatherLabel, weatherSource } = getWeatherPayload(input);
   const accessCode = generateAccessCode();
   const locationPath = parseLocationPath(input.locationPath);
+  const temperatureC = convertTemperatureToCelsius(input.temperature, parseTemperatureUnit(input.temperatureUnit));
 
   if (!locationPath || !locationPath.includes(input.locationKey)) {
     throw new Error(strings.invalidBooking);
@@ -434,6 +467,8 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
         slot: input.slot,
         weatherLabel,
         weatherSource,
+        temperatureC,
+        windSpeedMps: input.windSpeedMps,
         bookedBy: input.bookedBy,
         occasion: input.occasion || null,
         accessCodeHash: hashAccessCode(accessCode),
@@ -460,6 +495,7 @@ export async function updateBooking(
   const bookingDate = parseIsoDateToDatabaseDate(input.date);
   const { weatherLabel, weatherSource } = getWeatherPayload(input);
   const locationPath = parseLocationPath(input.locationPath);
+  const temperatureC = convertTemperatureToCelsius(input.temperature, parseTemperatureUnit(input.temperatureUnit));
 
   if (!locationPath || !locationPath.includes(input.locationKey)) {
     throw new Error(strings.invalidBooking);
@@ -517,6 +553,8 @@ export async function updateBooking(
         slot: input.slot,
         weatherLabel,
         weatherSource,
+        temperatureC,
+        windSpeedMps: input.windSpeedMps,
         bookedBy: input.bookedBy,
         occasion: input.occasion || null,
       },
