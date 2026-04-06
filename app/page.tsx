@@ -4,9 +4,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 import { BookingForm } from "@/components/booking-form";
+import { ApologyNoticeModal } from "@/components/apology-notice-modal";
 import { CalendarGrid } from "@/components/calendar-grid";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { getCalendarMonth, getDayBookings, resolveCalendarMonthStart } from "@/lib/bookings";
-import { buildLocalizedHref, getCopy, parseLanguage } from "@/lib/i18n";
+import { buildLocalizedHref, getCopy, LANGUAGE_COOKIE_KEY, parseLanguage } from "@/lib/i18n";
 import {
   DEFAULT_LOCATION,
   decodeSelectedLocationCookie,
@@ -35,7 +37,8 @@ type HomePageProps = {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = (await searchParams) ?? {};
   const cookieStore = await cookies();
-  const language = parseLanguage(params.lang);
+  const cookieLanguage = cookieStore.get(LANGUAGE_COOKIE_KEY)?.value;
+  const language = parseLanguage(params.lang ?? cookieLanguage);
   const strings = getCopy(language);
   const urlHasLocation = hasLocationSearchParams(params);
   const cookieLocation = decodeSelectedLocationCookie(cookieStore.get(LOCATION_COOKIE_KEY)?.value);
@@ -56,28 +59,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <main className="page-shell">
+      <ApologyNoticeModal language={language} />
+
       <section className="hero">
         <div className="hero-topbar">
           <span className="eyebrow">{strings.eyebrow}</span>
           <div className="hero-controls">
-            <div className="language-switcher" aria-label={strings.languageLabel}>
-              <Link
-                className={`language-button ${language === "sv" ? "active" : ""}`}
-                href={buildLocalizedHref("sv", { date: selectedDate, month: calendar.monthKey, lang: "sv" })}
-                prefetch={false}
-                scroll={false}
-              >
-                SV
-              </Link>
-              <Link
-                className={`language-button ${language === "en" ? "active" : ""}`}
-                href={buildLocalizedHref("en", { date: selectedDate, month: calendar.monthKey, lang: "en" })}
-                prefetch={false}
-                scroll={false}
-              >
-                EN
-              </Link>
-            </div>
+            <LanguageSwitcher currentLanguage={language} date={selectedDate} month={calendar.monthKey} />
             <TemperatureUnitToggle language={language} />
           </div>
         </div>

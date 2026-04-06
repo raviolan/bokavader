@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import type { BookingSlotValue } from "@/lib/booking-slot";
 
 export const SITE_LANGUAGES = ["sv", "en"] as const;
+export const LANGUAGE_COOKIE_KEY = "bokavader-language";
+export const LANGUAGE_STORAGE_KEY = "bokavader:language";
 
 export type SiteLanguage = (typeof SITE_LANGUAGES)[number];
 
@@ -58,6 +60,12 @@ const copy = {
     broaderBooking: (location: string) => `Gäller för ${location}`,
     swedish: "Svenska",
     english: "English",
+    apologyEyebrow: "Meddelande",
+    apologyTitle: "Ursäkt om påskvädret",
+    apologyMessage:
+      "Det planerade vädret har levererats, men utfallet har sannolikt inte motsvarat det väder som användare avsåg att boka. Detta har nu åtgärdats genom stöd för temperatur och vind. Vi ber uppriktigt om ursäkt för besväret under påsken och hoppas att du vill fortsätta använda tjänsten efter denna rättelse.",
+    apologyAccepted: "Ursäkt godtagen",
+    apologyThanks: "Okej, tack",
     temperatureUnitLabel: "Temperatur",
     celsius: "Celsius",
     fahrenheit: "Fahrenheit",
@@ -174,6 +182,12 @@ const copy = {
     broaderBooking: (location: string) => `Applies to ${location}`,
     swedish: "Svenska",
     english: "English",
+    apologyEyebrow: "Notice",
+    apologyTitle: "Apology For The Easter Weather",
+    apologyMessage:
+      "While the scheduled weather was delivered, the outcome likely did not match the weather users intended to reserve. This has now been corrected through the addition of temperature and wind inputs. We sincerely apologize for the inconvenience caused over Easter and hope you will continue to use the service now that this issue has been addressed.",
+    apologyAccepted: "Apology accepted",
+    apologyThanks: "OK thanks",
     temperatureUnitLabel: "Temperature",
     celsius: "Celsius",
     fahrenheit: "Fahrenheit",

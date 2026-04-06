@@ -899,6 +899,10 @@ textarea {
   width: min(100%, 480px);
 }
 
+.apology-panel {
+  width: min(100%, 520px);
+}
+
 .modal-header {
   display: flex;
   align-items: start;
@@ -1006,6 +1010,23 @@ textarea {
   margin-top: 16px;
 }
 
+.apology-panel__body {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.apology-panel__body p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.apology-panel__actions {
+  display: grid;
+  gap: 10px;
+}
+
 .confirmation-dialog__body h3 {
   margin: 0;
   font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
@@ -1020,6 +1041,10 @@ textarea {
   .metrics-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .apology-panel__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 767px) {
@@ -1032,6 +1057,10 @@ textarea {
   .hero-topbar,
   .section-header {
     flex-direction: column;
+  }
+
+  .hero-topbar {
+    margin-bottom: 18px;
   }
 
   .hero-controls,
