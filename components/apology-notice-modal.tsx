@@ -81,7 +81,7 @@ function ScheduledNoticeModal({
         <div className="apology-panel__body">
           <p>{body}</p>
           <div className="apology-panel__actions">
-            <button className="submit-button secondary-button" onClick={closeNotice} type="button">
+            <button className="submit-button" onClick={closeNotice} type="button">
               {acceptedLabel}
             </button>
             <button className="submit-button" onClick={closeNotice} type="button">
