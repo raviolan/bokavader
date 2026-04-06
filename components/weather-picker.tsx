@@ -38,6 +38,8 @@ export function WeatherPicker({
   const presetSelectId = `${inputId}-weather-preset`;
   const customInputId = `${inputId}-custom-weather`;
   const mode = controlledMode ?? uncontrolledMode;
+  const isPresetControlled = presetValue !== undefined;
+  const isCustomWeatherControlled = customWeatherValue !== undefined;
   const resolvedPresetValue = presetValue ?? defaultPreset;
   const resolvedCustomWeatherValue = customWeatherValue ?? initialCustomWeather;
 
@@ -83,10 +85,11 @@ export function WeatherPicker({
         <div className="field">
           <label htmlFor={presetSelectId}>{strings.presetWeather}</label>
           <select
+            defaultValue={isPresetControlled ? undefined : defaultPreset}
             id={presetSelectId}
             name="weatherPreset"
             onChange={(event) => onPresetChange?.(event.target.value)}
-            value={resolvedPresetValue}
+            value={isPresetControlled ? resolvedPresetValue : undefined}
           >
             {WEATHER_PRESETS.map((preset) => (
               <option key={preset} value={preset}>
@@ -101,13 +104,14 @@ export function WeatherPicker({
         <div className="field">
           <label htmlFor={customInputId}>{strings.customWeather}</label>
           <input
+            defaultValue={isCustomWeatherControlled ? undefined : initialCustomWeather}
             id={customInputId}
             maxLength={32}
             name="customWeather"
             onChange={(event) => onCustomWeatherChange?.(event.target.value)}
             placeholder={strings.customPlaceholder}
             type="text"
-            value={resolvedCustomWeatherValue}
+            value={isCustomWeatherControlled ? resolvedCustomWeatherValue : undefined}
           />
         </div>
       ) : null}
