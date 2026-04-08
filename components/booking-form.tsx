@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import { submitBooking } from "@/app/actions";
 import { BookingDetailsModal } from "@/components/booking-details-modal";
+import { ModalShell } from "@/components/modal-shell";
 import type { BookingFormState, DayBooking } from "@/lib/bookings";
 import { BOOKING_SLOTS } from "@/lib/booking-slot";
+import { getTodayIsoDateInStockholm, isShortNoticeBooking } from "@/lib/date";
 import { getCopy, getSlotLabel, translateWeatherLabel, type SiteLanguage } from "@/lib/i18n";
 import { serializeLocationPath, type SelectedLocation } from "@/lib/location";
 import { formatTemperatureValue } from "@/lib/temperature";
@@ -18,9 +20,45 @@ const initialState: BookingFormState = {
   status: "idle",
 };
 
+type DayBookingListItemProps = {
+  booking: DayBooking;
+  language: SiteLanguage;
+  monthKey: string;
+  selectedLocation: SelectedLocation;
+};
+
+function DayBookingListItem({ booking, language, monthKey, selectedLocation }: DayBookingListItemProps) {
+  const strings = getCopy(language);
+  const temperatureC = typeof booking.temperatureC === "number" ? booking.temperatureC : null;
+  const windSpeedMps = typeof booking.windSpeedMps === "number" ? booking.windSpeedMps : null;
+
+  return (
+    <BookingDetailsModal bookings={[booking]} language={language} monthKey={monthKey} triggerClassName="side-item side-item-button">
+      <strong className="weather-label">
+        <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
+        <span>
+          {getSlotLabel(booking.slot, language)}: {translateWeatherLabel(booking.weatherLabel, language)}
+        </span>
+      </strong>
+      {temperatureC !== null && windSpeedMps !== null ? (
+        <span>
+          {strings.weatherMetricsSummary(
+            `${formatTemperatureValue(temperatureC)}\u00b0C`,
+            `${formatTemperatureValue(windSpeedMps)} ${strings.windUnit}`,
+          )}
+        </span>
+      ) : null}
+      <span>{strings.reservedBy(booking.bookedBy)}</span>
+      {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
+      {booking.occasion ? <span className="booking-occasion">{booking.occasion}</span> : null}
+    </BookingDetailsModal>
+  );
+}
+
 type BookingFormProps = {
   databaseConfigured: boolean;
   dayBookings: DayBooking[];
+  dayBookingsLoadError: boolean;
   language: SiteLanguage;
   monthKey: string;
   selectedDate: string;
@@ -30,6 +68,7 @@ type BookingFormProps = {
 export function BookingForm({
   databaseConfigured,
   dayBookings,
+  dayBookingsLoadError,
   language,
   monthKey,
   selectedDate,
@@ -37,6 +76,7 @@ export function BookingForm({
 }: BookingFormProps) {
   const strings = getCopy(language);
   const [state, formAction, pending] = useActionState(submitBooking, initialState);
+  const bookingFormRef = useRef<HTMLFormElement>(null);
   const [dismissedAccessCode, setDismissedAccessCode] = useState<string | null>(null);
   const [bookedBy, setBookedBy] = useState("");
   const [slot, setSlot] = useState<(typeof BOOKING_SLOTS)[number]>("FULL_DAY");
@@ -44,27 +84,33 @@ export function BookingForm({
   const [weatherPreset, setWeatherPreset] = useState<string>(WEATHER_PRESETS[0]);
   const [customWeather, setCustomWeather] = useState("");
   const [occasion, setOccasion] = useState("");
+  const [shortNoticePromptOpen, setShortNoticePromptOpen] = useState(false);
+  const [acceptedShortNoticeKey, setAcceptedShortNoticeKey] = useState<string | null>(null);
   const showConfirmationDialog =
     state.status === "success" && Boolean(state.accessCode) && dismissedAccessCode !== state.accessCode;
+  const todayIsoDate = getTodayIsoDateInStockholm();
+  const isPastSelectedDate = selectedDate < todayIsoDate;
+  const shortNoticeKey = `${selectedDate}:${slot}`;
+  const requiresShortNoticePrompt = !isPastSelectedDate && isShortNoticeBooking(selectedDate, slot);
+  const shortNoticeAccepted = acceptedShortNoticeKey === shortNoticeKey;
 
-  useEffect(() => {
-    if (!showConfirmationDialog) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    if (!requiresShortNoticePrompt || shortNoticeAccepted) {
       return;
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    event.preventDefault();
+    setShortNoticePromptOpen(true);
+  }
 
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showConfirmationDialog]);
+  function acceptShortNoticePrompt() {
+    setAcceptedShortNoticeKey(shortNoticeKey);
+    setShortNoticePromptOpen(false);
 
-  useEffect(() => {
-    if (databaseConfigured && dayBookings.length === 0) {
-      console.log(strings.dbSetupHint);
-    }
-  }, [databaseConfigured, dayBookings.length, strings]);
+    window.setTimeout(() => {
+      bookingFormRef.current?.requestSubmit();
+    }, 0);
+  }
 
   return (
     <>
@@ -72,7 +118,7 @@ export function BookingForm({
       <p className="selected-date">{strings.selectedDayWithDate(selectedDate)}</p>
       <p className="subtle">{strings.showingCalendarFor(selectedLocation.label)}</p>
 
-      <form action={formAction} className="booking-form">
+      <form action={formAction} className="booking-form" onSubmit={handleSubmit} ref={bookingFormRef}>
         <input name="date" type="hidden" value={selectedDate} />
         <input name="lang" type="hidden" value={language} />
         <input name="month" type="hidden" value={monthKey} />
@@ -80,6 +126,7 @@ export function BookingForm({
         <input name="locationLabel" type="hidden" value={selectedLocation.label} />
         <input name="locationPath" type="hidden" value={serializeLocationPath(selectedLocation.path)} />
         <input name="locationScope" type="hidden" value={selectedLocation.scope} />
+        <input name="shortNoticeAcknowledged" type="hidden" value={shortNoticeAccepted ? "true" : "false"} />
 
         <div className="field">
           <label htmlFor="bookedBy">{strings.name}</label>
@@ -113,6 +160,11 @@ export function BookingForm({
         </fieldset>
 
         <p className="hint booking-rules-hint">{strings.bookingRules}</p>
+        {isPastSelectedDate ? (
+          <p className="status-message error" role="status">
+            {strings.pastDateUnavailable}
+          </p>
+        ) : null}
 
         <WeatherPicker
           customWeatherValue={customWeather}
@@ -153,92 +205,90 @@ export function BookingForm({
           </p>
         ) : null}
 
-        <button className="submit-button" disabled={pending || !databaseConfigured} type="submit">
+        <button className="submit-button" disabled={pending || !databaseConfigured || isPastSelectedDate} type="submit">
           {pending ? strings.savingBooking : strings.submitBooking}
         </button>
       </form>
 
       <div className="side-list">
+        {dayBookingsLoadError ? (
+          <p className="status-message error" role="status">
+            {strings.bookingsLoadFailed}
+          </p>
+        ) : null}
         {dayBookings.length > 0 ? (
           dayBookings.map((booking) => (
-            (() => {
-              const temperatureC = typeof booking.temperatureC === "number" ? booking.temperatureC : null;
-              const windSpeedMps = typeof booking.windSpeedMps === "number" ? booking.windSpeedMps : null;
-
-              return (
-                <BookingDetailsModal
-                  bookings={[booking]}
-                  key={booking.id}
-                  language={language}
-                  monthKey={monthKey}
-                  triggerClassName="side-item side-item-button"
-                >
-                  <strong className="weather-label">
-                    <WeatherIcon className="weather-icon" weatherLabel={booking.weatherLabel} />
-                    <span>
-                      {getSlotLabel(booking.slot, language)}: {translateWeatherLabel(booking.weatherLabel, language)}
-                    </span>
-                  </strong>
-                  {temperatureC !== null && windSpeedMps !== null ? (
-                    <span>
-                      {strings.weatherMetricsSummary(
-                        `${formatTemperatureValue(temperatureC)}\u00b0C`,
-                        `${formatTemperatureValue(windSpeedMps)} ${strings.windUnit}`,
-                      )}
-                    </span>
-                  ) : null}
-                  <span>{strings.reservedBy(booking.bookedBy)}</span>
-                  {booking.locationKey !== selectedLocation.key ? <span>{strings.broaderBooking(booking.locationLabel)}</span> : null}
-                  {booking.occasion ? <span className="booking-occasion">{booking.occasion}</span> : null}
-                </BookingDetailsModal>
-              );
-            })()
+            <DayBookingListItem
+              booking={booking}
+              key={booking.id}
+              language={language}
+              monthKey={monthKey}
+              selectedLocation={selectedLocation}
+            />
           ))
-        ) : (
+        ) : !dayBookingsLoadError ? (
           <div className="side-item">
             <strong>{strings.noBookingsYet}</strong>
             {strings.openDateMessage}
           </div>
-        )}
+        ) : null}
       </div>
 
       {showConfirmationDialog ? (
-        <div
-          aria-modal="true"
-          className="modal-backdrop"
-          onClick={(event) => {
-            if (event.target === event.currentTarget && state.accessCode) {
+        <ModalShell
+          onClose={() => {
+            if (state.accessCode) {
               setDismissedAccessCode(state.accessCode);
             }
           }}
-          role="dialog"
+          panelClassName="confirmation-panel"
         >
-          <div className="modal-panel confirmation-panel">
-            <div className="modal-header">
-              <div>
-                <p className="selected-date">{strings.bookingComplete}</p>
-                <h3>{strings.bookingConfirmed}</h3>
-              </div>
+          <div className="modal-header">
+            <div>
+              <p className="selected-date">{strings.bookingComplete}</p>
+              <h3>{strings.bookingConfirmed}</h3>
             </div>
-            <div className="confirmation-dialog__body">
-              <p>{state.message}</p>
-              <p>{state.accessCode ? <><strong>{strings.saveCode(state.accessCode)}</strong></> : null}</p>
-              <p className="hint">{strings.codeReminder}</p>
-              <button
-                autoFocus
-                className="submit-button"
-                onClick={() => {
-                  if (state.accessCode) {
-                    setDismissedAccessCode(state.accessCode);
-                  }
-                }}
-                type="button"
-              >
-                {strings.confirm}
+          </div>
+          <div className="confirmation-dialog__body">
+            <p>{state.message}</p>
+            <p>{state.accessCode ? <strong>{strings.saveCode(state.accessCode)}</strong> : null}</p>
+            <p className="hint">{strings.codeReminder}</p>
+            <button
+              autoFocus
+              className="submit-button"
+              onClick={() => {
+                if (state.accessCode) {
+                  setDismissedAccessCode(state.accessCode);
+                }
+              }}
+              type="button"
+            >
+              {strings.confirm}
+            </button>
+          </div>
+        </ModalShell>
+      ) : null}
+
+      {shortNoticePromptOpen ? (
+        <ModalShell onClose={() => setShortNoticePromptOpen(false)} panelClassName="notice-panel">
+          <div className="modal-header">
+            <div>
+              <p className="selected-date">{strings.shortNoticeEyebrow}</p>
+              <h3>{strings.shortNoticeTitle}</h3>
+            </div>
+          </div>
+          <div className="notice-panel__body">
+            <p>{strings.shortNoticeMessage}</p>
+            <div className="notice-panel__actions">
+              <button className="submit-button" onClick={acceptShortNoticePrompt} type="button">
+                {strings.shortNoticeAccept}
+              </button>
+              <button className="submit-button" onClick={() => setShortNoticePromptOpen(false)} type="button">
+                {strings.shortNoticeCancel}
               </button>
             </div>
           </div>
-        </div>
+        </ModalShell>
       ) : null}
     </>
   );

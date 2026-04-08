@@ -1,13 +1,14 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { useActionState, useId, useRef, useState, type CSSProperties } from "react";
 
 import { submitBookingDelete, submitBookingUpdate, verifyBookingCode } from "@/app/actions";
+import { ModalShell } from "@/components/modal-shell";
 import { WeatherMetricsFields } from "@/components/weather-metrics-fields";
 import { WeatherPicker } from "@/components/weather-picker";
 import type { BookingAccessState, BookingFormState, DayBooking } from "@/lib/bookings";
 import { BOOKING_SLOTS } from "@/lib/booking-slot";
+import { getTodayIsoDateInStockholm } from "@/lib/date";
 import { getCopy, getSlotLabel, translateWeatherLabel, type SiteLanguage } from "@/lib/i18n";
 import { serializeLocationPath } from "@/lib/location";
 import { formatTemperatureValue } from "@/lib/temperature";
@@ -84,6 +85,7 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
   const temperatureC = typeof booking.temperatureC === "number" ? booking.temperatureC : null;
   const windSpeedMps = typeof booking.windSpeedMps === "number" ? booking.windSpeedMps : null;
   const tone = getWeatherTone(booking.weatherLabel, booking.weatherSource);
+  const todayIsoDate = getTodayIsoDateInStockholm();
   const toneStyle = {
     "--modal-weather-stripe": tone.stripe,
     "--modal-weather-surface": tone.surface,
@@ -181,7 +183,7 @@ function BookingDialogSection({ booking, language, monthKey, onComplete, splitVi
 
             <div className="field">
               <label htmlFor={`${slotGroupId}-date`}>{strings.date}</label>
-              <input defaultValue={booking.date} id={`${slotGroupId}-date`} name="date" type="date" />
+              <input defaultValue={booking.date} id={`${slotGroupId}-date`} min={todayIsoDate} name="date" type="date" />
             </div>
 
             <fieldset className="field">
@@ -275,24 +277,6 @@ export function BookingDetailsDialog({ bookings, language, monthKey, onClose }: 
     sortedBookings.some((booking) => booking.slot === "MORNING") &&
     sortedBookings.some((booking) => booking.slot === "AFTERNOON");
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
-
   const primaryBooking = sortedBookings[0];
   const primaryTone = primaryBooking ? getWeatherTone(primaryBooking.weatherLabel, primaryBooking.weatherSource) : null;
   const secondaryBooking = sortedBookings[1];
@@ -311,42 +295,34 @@ export function BookingDetailsDialog({ bookings, language, monthKey, onClose }: 
         } as CSSProperties)
       : undefined;
 
-  return createPortal(
-    <div
-      aria-modal="true"
-      className="modal-backdrop"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
-      role="dialog"
+  return (
+    <ModalShell
+      onClose={onClose}
+      panelClassName={splitView ? "split-weather-modal-panel" : "weather-modal-panel"}
+      panelStyle={panelStyle}
     >
-      <div className={`modal-panel ${splitView ? "split-weather-modal-panel" : "weather-modal-panel"}`} style={panelStyle}>
-        <div className="modal-header">
-          <div>
-            <p className="selected-date">{strings.bookingForDate(primaryBooking?.date ?? "")}</p>
-            <h3>{strings.weatherBooking}</h3>
-          </div>
-          <button className="modal-close" onClick={onClose} type="button">
-            {strings.close}
-          </button>
+      <div className="modal-header">
+        <div>
+          <p className="selected-date">{strings.bookingForDate(primaryBooking?.date ?? "")}</p>
+          <h3>{strings.weatherBooking}</h3>
         </div>
-
-        <div className={splitView ? "modal-split-layout" : undefined}>
-          {sortedBookings.map((booking) => (
-            <BookingDialogSection
-              booking={booking}
-              key={booking.id}
-              language={language}
-              monthKey={monthKey}
-              onComplete={onClose}
-              splitView={splitView}
-            />
-          ))}
-        </div>
+        <button className="modal-close" onClick={onClose} type="button">
+          {strings.close}
+        </button>
       </div>
-    </div>,
-    document.body,
+
+      <div className={splitView ? "modal-split-layout" : undefined}>
+        {sortedBookings.map((booking) => (
+          <BookingDialogSection
+            booking={booking}
+            key={booking.id}
+            language={language}
+            monthKey={monthKey}
+            onComplete={onClose}
+            splitView={splitView}
+          />
+        ))}
+      </div>
+    </ModalShell>
   );
 }

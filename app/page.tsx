@@ -4,20 +4,18 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 import { BookingForm } from "@/components/booking-form";
-import { ApologyNoticeModal } from "@/components/apology-notice-modal";
 import { CalendarGrid } from "@/components/calendar-grid";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { getCalendarMonth, getDayBookings, resolveCalendarMonthStart } from "@/lib/bookings";
+import { buildEmptyCalendarMonth, getCalendarMonth, getDayBookings, resolveCalendarMonthStart } from "@/lib/bookings";
 import { buildLocalizedHref, getCopy, LANGUAGE_COOKIE_KEY, parseLanguage } from "@/lib/i18n";
 import {
   DEFAULT_LOCATION,
   decodeSelectedLocationCookie,
-  hasLocationSearchParams,
   LOCATION_COOKIE_KEY,
-  parseSelectedLocation,
 } from "@/lib/location";
 import { isDatabaseEnabled } from "@/lib/prisma";
 import { LocationPicker } from "@/components/location-picker";
+import { SeasonalNoticeModal } from "@/components/seasonal-notice-modal";
 import { TemperatureUnitToggle } from "@/components/temperature-unit-toggle";
 
 export const dynamic = "force-dynamic";
@@ -27,10 +25,6 @@ type HomePageProps = {
     month?: string;
     date?: string;
     lang?: string;
-    locationKey?: string;
-    locationLabel?: string;
-    locationPath?: string;
-    locationScope?: string;
   }>;
 };
 
@@ -40,10 +34,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const cookieLanguage = cookieStore.get(LANGUAGE_COOKIE_KEY)?.value;
   const language = parseLanguage(params.lang ?? cookieLanguage);
   const strings = getCopy(language);
-  const urlHasLocation = hasLocationSearchParams(params);
   const cookieLocation = decodeSelectedLocationCookie(cookieStore.get(LOCATION_COOKIE_KEY)?.value);
-  const selectedLocation = urlHasLocation ? parseSelectedLocation(params) : cookieLocation ?? DEFAULT_LOCATION;
-  const locationSource = urlHasLocation ? "url" : cookieLocation ? "cookie" : "default";
+  const selectedLocation = cookieLocation ?? DEFAULT_LOCATION;
+  const locationSource = cookieLocation ? "cookie" : "default";
   const today = new Date();
   const todayDate = format(today, "yyyy-MM-dd");
   const todayMonth = format(today, "yyyy-MM");
@@ -55,14 +48,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       : monthKey === todayMonth
         ? todayDate
         : format(monthStart, "yyyy-MM-dd");
-  const [calendar, dayBookings] = await Promise.all([
+  const [calendarResult, dayBookingsResult] = await Promise.allSettled([
     getCalendarMonth(params.month, language, selectedLocation),
     getDayBookings(selectedDate, selectedLocation),
   ]);
+  const calendarLoadError = calendarResult.status === "rejected";
+  const dayBookingsLoadError = dayBookingsResult.status === "rejected";
+  const calendar = calendarLoadError ? buildEmptyCalendarMonth(monthStart, language) : calendarResult.value;
+  const dayBookings = dayBookingsLoadError ? [] : dayBookingsResult.value;
+
+  if (calendarLoadError) {
+    console.error("Failed to load calendar bookings", calendarResult.reason);
+  }
+
+  if (dayBookingsLoadError) {
+    console.error("Failed to load selected day bookings", dayBookingsResult.reason);
+  }
 
   return (
     <main className="page-shell">
-      <ApologyNoticeModal language={language} />
+      <SeasonalNoticeModal language={language} />
 
       <section className="hero">
         <div className="hero-topbar">
@@ -121,12 +126,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             selectedDate={selectedDate}
             selectedLocation={selectedLocation}
           />
+          {calendarLoadError ? (
+            <p className="status-message error" role="status">
+              {strings.bookingsLoadFailed}
+            </p>
+          ) : null}
         </div>
 
         <aside className="panel booking-panel">
           <BookingForm
             databaseConfigured={isDatabaseEnabled}
             dayBookings={dayBookings}
+            dayBookingsLoadError={dayBookingsLoadError}
             language={language}
             monthKey={calendar.monthKey}
             selectedDate={selectedDate}

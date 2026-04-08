@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
 import { getDayBookings, type DayBooking } from "@/lib/bookings";
+import { getTodayIsoDateInStockholm } from "@/lib/date";
 import { DEFAULT_LOCATION } from "@/lib/location";
 import { getWeatherFaviconSpec } from "@/lib/weather";
 
@@ -10,22 +11,6 @@ export const size = {
   height: 64,
 };
 export const dynamic = "force-dynamic";
-
-function getTodayIsoDateInStockholm() {
-  const formatter = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: "Europe/Stockholm",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-
-  const parts = formatter.formatToParts(new Date());
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  return `${year}-${month}-${day}`;
-}
 
 function pickTodayWeather(bookings: DayBooking[]) {
   return (
@@ -116,7 +101,8 @@ export default async function Icon() {
       weatherLabel = booking.weatherLabel;
       weatherSource = booking.weatherSource;
     }
-  } catch {
+  } catch (error) {
+    console.error("Failed to load favicon bookings", error);
     // Fall back to the default sun icon if the database is unavailable.
   }
 

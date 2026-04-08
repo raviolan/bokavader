@@ -49,6 +49,8 @@ I recommend Supabase for the first deployment because it gives you a hosted Post
 
 Without `DATABASE_URL`, the app still renders so you can inspect the UI, but booking submissions stay disabled until a shared PostgreSQL database is configured.
 
+Set `NEXT_PUBLIC_SHOW_EASTER_NOTICE=false` to disable the temporary Easter notice without editing the app shell.
+
 ## Skip database for now
 
 If you want to continue building the UI without fighting database setup yet, set:
@@ -109,7 +111,7 @@ It is the one private Postgres connection string that points both your local app
 
 - The header location picker uses a server-side proxy to the public Photon geocoding demo service.
 - Search is limited to country, region, and city-like results so the app does not create street-level calendars.
-- The selected location is kept in the URL and persisted locally in the browser.
+- The selected location is persisted in a cookie and mirrored in local storage so the browser and server stay aligned.
 
 ## Netlify notes
 

@@ -253,57 +253,6 @@ export function parseLocationPath(value?: string) {
   return path.length > 0 ? path : null;
 }
 
-export function parseSelectedLocation(input: {
-  locationKey?: string;
-  locationLabel?: string;
-  locationPath?: string;
-  locationScope?: string;
-}) {
-  if (!input.locationKey || !input.locationLabel || !input.locationScope) {
-    return DEFAULT_LOCATION;
-  }
-
-  if (!isLocationScope(input.locationScope)) {
-    return DEFAULT_LOCATION;
-  }
-
-  const path = parseLocationPath(input.locationPath);
-  const canonicalKey = canonicalizeLocationKey(input.locationKey);
-  const canonicalPath = path ? canonicalizeLocationPath(path) : null;
-
-  if (!canonicalPath || !canonicalPath.includes(canonicalKey)) {
-    return DEFAULT_LOCATION;
-  }
-
-  return {
-    key: canonicalKey,
-    label: normalizeLocationLabel(input.locationLabel),
-    scope: input.locationScope,
-    path: canonicalPath,
-  } satisfies SelectedLocation;
-}
-
-export function hasLocationSearchParams(input: {
-  locationKey?: string;
-  locationLabel?: string;
-  locationPath?: string;
-  locationScope?: string;
-}) {
-  return Boolean(input.locationKey || input.locationLabel || input.locationPath || input.locationScope);
-}
-
-export function getLocationSearchParams(location: SelectedLocation) {
-  const canonicalPath = canonicalizeLocationPath(location.path);
-  const canonicalKey = canonicalizeLocationKey(location.key);
-
-  return {
-    locationKey: canonicalKey,
-    locationLabel: location.label,
-    locationPath: serializeLocationPath(canonicalPath),
-    locationScope: location.scope,
-  };
-}
-
 export function serializeSelectedLocation(location: SelectedLocation) {
   return JSON.stringify(location);
 }

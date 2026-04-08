@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { getCopy, type SiteLanguage } from "@/lib/i18n";
 import {
   DEFAULT_LOCATION,
   deserializeSelectedLocation,
   encodeSelectedLocationCookie,
-  hasLocationSearchParams,
   LOCATION_COOKIE_KEY,
   LOCATION_STORAGE_KEY,
   serializeSelectedLocation,
@@ -17,15 +16,13 @@ import {
 
 type LocationPickerProps = {
   language: SiteLanguage;
-  locationSource: "url" | "cookie" | "default";
+  locationSource: "cookie" | "default";
   selectedLocation: SelectedLocation;
 };
 
 type LocationSearchResponse = {
   results: SelectedLocation[];
 };
-
-const LOCATION_SEARCH_PARAM_KEYS = ["locationKey", "locationLabel", "locationPath", "locationScope"] as const;
 
 function persistLocation(location: SelectedLocation) {
   window.localStorage.setItem(LOCATION_STORAGE_KEY, serializeSelectedLocation(location));
@@ -34,18 +31,19 @@ function persistLocation(location: SelectedLocation) {
 
 export function LocationPicker({ language, locationSource, selectedLocation }: LocationPickerProps) {
   const strings = getCopy(language);
-  const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [currentLocation, setCurrentLocation] = useState(selectedLocation);
   const [query, setQuery] = useState(selectedLocation.label);
   const [results, setResults] = useState<SelectedLocation[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [, startTransition] = useTransition();
+  const showResetButton = currentLocation.key !== DEFAULT_LOCATION.key;
 
   useEffect(() => {
+    setCurrentLocation(selectedLocation);
     setQuery(selectedLocation.label);
-  }, [selectedLocation.label]);
+  }, [selectedLocation]);
 
   useEffect(() => {
     if (locationSource === "default") {
@@ -56,30 +54,6 @@ export function LocationPicker({ language, locationSource, selectedLocation }: L
   }, [locationSource, selectedLocation]);
 
   useEffect(() => {
-    const cleanParams = new URLSearchParams(searchParams.toString());
-    let hadLegacyLocationParams = false;
-
-    for (const key of LOCATION_SEARCH_PARAM_KEYS) {
-      if (cleanParams.has(key)) {
-        cleanParams.delete(key);
-        hadLegacyLocationParams = true;
-      }
-    }
-
-    if (locationSource === "url") {
-      if (!hadLegacyLocationParams) {
-        return;
-      }
-
-      const nextHref = cleanParams.size > 0 ? `${pathname}?${cleanParams.toString()}` : pathname;
-
-      startTransition(() => {
-        router.replace(nextHref as never, { scroll: false });
-      });
-
-      return;
-    }
-
     if (locationSource !== "default") {
       return;
     }
@@ -87,44 +61,30 @@ export function LocationPicker({ language, locationSource, selectedLocation }: L
     const stored = window.localStorage.getItem(LOCATION_STORAGE_KEY);
 
     if (!stored) {
-      if (!hadLegacyLocationParams) {
-        return;
-      }
-
-      const nextHref = cleanParams.size > 0 ? `${pathname}?${cleanParams.toString()}` : pathname;
-
-      startTransition(() => {
-        router.replace(nextHref as never, { scroll: false });
-      });
       return;
     }
 
     const persistedLocation = deserializeSelectedLocation(stored);
 
     if (!persistedLocation || persistedLocation.key === selectedLocation.key) {
-      if (!hadLegacyLocationParams) {
-        return;
-      }
-
-      const nextHref = cleanParams.size > 0 ? `${pathname}?${cleanParams.toString()}` : pathname;
-
-      startTransition(() => {
-        router.replace(nextHref as never, { scroll: false });
-      });
       return;
     }
 
+    setCurrentLocation(persistedLocation);
+    setQuery(persistedLocation.label);
     persistLocation(persistedLocation);
 
-    startTransition(() => {
-      router.refresh();
-    });
-  }, [locationSource, pathname, router, searchParams, selectedLocation]);
+    window.setTimeout(() => {
+      startTransition(() => {
+        router.refresh();
+      });
+    }, 0);
+  }, [locationSource, router, selectedLocation]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
 
-    if (!open || trimmedQuery.length < 2 || trimmedQuery === selectedLocation.label) {
+    if (!open || trimmedQuery.length < 2 || trimmedQuery === currentLocation.label) {
       setResults([]);
       return;
     }
@@ -159,39 +119,25 @@ export function LocationPicker({ language, locationSource, selectedLocation }: L
       window.clearTimeout(timeoutId);
       setLoading(false);
     };
-  }, [language, open, query, selectedLocation.label]);
+  }, [currentLocation.label, language, open, query]);
 
   function replaceLocation(location: SelectedLocation) {
-    if (location.key === selectedLocation.key) {
+    if (location.key === currentLocation.key) {
       return;
     }
-    const params = new URLSearchParams(searchParams.toString());
-    const hasLegacyLocationParams = hasLocationSearchParams({
-      locationKey: params.get("locationKey") ?? undefined,
-      locationLabel: params.get("locationLabel") ?? undefined,
-      locationPath: params.get("locationPath") ?? undefined,
-      locationScope: params.get("locationScope") ?? undefined,
-    });
 
+    setCurrentLocation(location);
     persistLocation(location);
 
-    startTransition(() => {
-      if (hasLegacyLocationParams) {
-        for (const key of LOCATION_SEARCH_PARAM_KEYS) {
-          params.delete(key);
-        }
-
-        const nextHref = params.size > 0 ? `${pathname}?${params.toString()}` : pathname;
-        router.replace(nextHref as never, { scroll: false });
-        return;
-      }
-
-      router.refresh();
-    });
+    window.setTimeout(() => {
+      startTransition(() => {
+        router.refresh();
+      });
+    }, 0);
   }
 
   function selectLocation(location: SelectedLocation) {
-    if (location.key === selectedLocation.key) {
+    if (location.key === currentLocation.key) {
       setQuery(location.label);
       setResults([]);
       setOpen(false);
@@ -210,9 +156,11 @@ export function LocationPicker({ language, locationSource, selectedLocation }: L
         <label className="location-picker__label" htmlFor="location-search">
           {strings.locationLabel}
         </label>
-        <button className="location-reset" onClick={() => selectLocation(DEFAULT_LOCATION)} type="button">
-          {strings.locationReset}
-        </button>
+        {showResetButton ? (
+          <button className="location-reset" onClick={() => selectLocation(DEFAULT_LOCATION)} type="button">
+            {strings.locationReset}
+          </button>
+        ) : null}
       </div>
 
       <div className="location-picker__surface">
@@ -221,16 +169,27 @@ export function LocationPicker({ language, locationSource, selectedLocation }: L
           className="location-picker__input"
           id="location-search"
           name="location-search"
+          onClick={(event) => {
+            if (query === currentLocation.label) {
+              event.currentTarget.select();
+            }
+          }}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={(event) => {
+            if (query === currentLocation.label) {
+              event.currentTarget.select();
+            }
+
+            setOpen(true);
+          }}
           placeholder={strings.locationPlaceholder}
           value={query}
         />
 
-        <p className="location-picker__current">{strings.showingCalendarFor(selectedLocation.label)}</p>
+        <p className="location-picker__current">{strings.showingCalendarFor(currentLocation.label)}</p>
 
         {open ? (
           <div className="location-picker__results">

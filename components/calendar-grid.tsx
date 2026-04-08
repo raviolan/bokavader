@@ -11,6 +11,7 @@ import {
   translateWeatherLabel,
   type SiteLanguage,
 } from "@/lib/i18n";
+import { getTodayIsoDateInStockholm } from "@/lib/date";
 import { type SelectedLocation } from "@/lib/location";
 import { getWeatherTone } from "@/lib/weather";
 import { WeatherIcon } from "@/components/weather-icon";
@@ -33,6 +34,7 @@ function getModalBookings(fullDayBooking: DayBooking | undefined, morningBooking
 
 export function CalendarGrid({ days, language, monthKey, selectedDate, selectedLocation }: CalendarGridProps) {
   const strings = getCopy(language);
+  const todayIsoDate = getTodayIsoDateInStockholm();
 
   return (
     <>
@@ -47,6 +49,7 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
         {days.map((day) => {
           const date = parseISO(day.isoDate);
           const isSelected = day.isoDate === selectedDate;
+          const isPastDay = day.isoDate < todayIsoDate;
           const fullDayBooking = day.bookings.find((booking) => booking.slot === "FULL_DAY");
           const morningBooking = day.bookings.find((booking) => booking.slot === "MORNING");
           const afternoonBooking = day.bookings.find((booking) => booking.slot === "AFTERNOON");
@@ -206,7 +209,7 @@ export function CalendarGrid({ days, language, monthKey, selectedDate, selectedL
                     prefetch={false}
                     scroll={false}
                   >
-                    {strings.availableBooking}
+                    {isPastDay ? strings.pastDayLabel : strings.availableBooking}
                   </Link>
                 </>
               )}

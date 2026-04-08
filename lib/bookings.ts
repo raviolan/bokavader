@@ -14,7 +14,12 @@ import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { isDatabaseEnabled } from "@/lib/prisma";
-import { formatDatabaseDateToIso, parseIsoDateToDatabaseDate } from "@/lib/date";
+import {
+  formatDatabaseDateToIso,
+  getTodayIsoDateInStockholm,
+  isShortNoticeBooking,
+  parseIsoDateToDatabaseDate,
+} from "@/lib/date";
 import { capitalizeFirstLetter, getCopy, type SiteLanguage } from "@/lib/i18n";
 import {
   canonicalizeLocationKey,
@@ -63,18 +68,19 @@ export type BookingAccessState = {
   verifiedCode?: string;
 };
 
+export type CalendarMonthData = {
+  currentMonth: Date;
+  monthLabel: string;
+  monthKey: string;
+  prevMonthKey: string;
+  nextMonthKey: string;
+  days: CalendarDay[];
+};
+
 export function resolveCalendarMonthStart(monthKey?: string) {
   const month = monthKey && /^\d{4}-\d{2}$/.test(monthKey) ? parseISO(`${monthKey}-01`) : new Date();
 
   return startOfMonth(month);
-}
-
-async function findManySafely<T>(query: () => Promise<T>, fallback: T) {
-  try {
-    return await query();
-  } catch {
-    return fallback;
-  }
 }
 
 const DEFAULT_BOOKING_ADMIN_CODE = "S2207";
@@ -124,6 +130,7 @@ function getBookingSchema(language: SiteLanguage) {
       weatherMode: z.enum(["preset", "custom"]),
       weatherPreset: z.string().trim().optional(),
       customWeather: z.string().trim().max(MAX_CUSTOM_WEATHER_LENGTH, strings.longCustomWeather).optional(),
+      shortNoticeAcknowledged: z.string().trim().optional(),
       temperature: numberField(strings.invalidTemperature)
         .refine((value) => value >= -120 && value <= 140, strings.invalidTemperature),
       temperatureUnit: z.string().trim().min(1, strings.invalidTemperatureUnit),
@@ -141,6 +148,14 @@ function getBookingSchema(language: SiteLanguage) {
           code: z.ZodIssueCode.custom,
           message: strings.shortName,
           path: ["bookedBy"],
+        });
+      }
+
+      if (value.date < getTodayIsoDateInStockholm()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: strings.pastDateUnavailable,
+          path: ["date"],
         });
       }
 
@@ -174,9 +189,18 @@ export async function getCalendarMonth(
   monthKey: string | undefined,
   language: SiteLanguage,
   location: SelectedLocation,
-) {
+): Promise<CalendarMonthData> {
   const strings = getCopy(language);
   const monthStart = resolveCalendarMonthStart(monthKey);
+  return getCalendarMonthForStart(monthStart, language, location, strings);
+}
+
+export async function getCalendarMonthForStart(
+  monthStart: Date,
+  language: SiteLanguage,
+  location: SelectedLocation,
+  strings = getCopy(language),
+): Promise<CalendarMonthData> {
   const monthEnd = endOfMonth(monthStart);
   const visibleStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const visibleEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
@@ -185,22 +209,18 @@ export async function getCalendarMonth(
   const locationAliases = expandLocationPathAliases(location.path);
 
   const bookings = isDatabaseEnabled
-    ? await findManySafely(
-        () =>
-          prisma!.booking.findMany({
-            where: {
-              bookingDate: {
-                gte: visibleStartDate,
-                lte: visibleEndDate,
-              },
-              locationKey: {
-                in: locationAliases,
-              },
-            },
-            orderBy: [{ bookingDate: "asc" }, { slot: "asc" }, { createdAt: "asc" }],
-          }),
-        [],
-      )
+    ? await prisma!.booking.findMany({
+        where: {
+          bookingDate: {
+            gte: visibleStartDate,
+            lte: visibleEndDate,
+          },
+          locationKey: {
+            in: locationAliases,
+          },
+        },
+        orderBy: [{ bookingDate: "asc" }, { slot: "asc" }, { createdAt: "asc" }],
+      })
     : [];
 
   const byDate = new Map<string, DayBooking[]>();
@@ -252,24 +272,48 @@ export async function getCalendarMonth(
   };
 }
 
+export function buildEmptyCalendarMonth(monthStart: Date, language: SiteLanguage): CalendarMonthData {
+  const strings = getCopy(language);
+  const monthEnd = endOfMonth(monthStart);
+  const visibleStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+  const visibleEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+  const days: CalendarDay[] = [];
+  let cursor = visibleStart;
+
+  while (cursor <= visibleEnd) {
+    days.push({
+      isoDate: format(cursor, "yyyy-MM-dd"),
+      inMonth: isSameMonth(cursor, monthStart),
+      bookings: [],
+    });
+
+    cursor = addDays(cursor, 1);
+  }
+
+  return {
+    currentMonth: monthStart,
+    monthLabel: capitalizeFirstLetter(format(monthStart, "MMMM yyyy", { locale: strings.locale })),
+    monthKey: format(monthStart, "yyyy-MM"),
+    prevMonthKey: format(addDays(monthStart, -1), "yyyy-MM"),
+    nextMonthKey: format(addDays(monthEnd, 1), "yyyy-MM"),
+    days,
+  };
+}
+
 export async function getDayBookings(isoDate: string, location: SelectedLocation) {
   const date = parseIsoDateToDatabaseDate(isoDate);
   const locationAliases = expandLocationPathAliases(location.path);
 
   const bookings = isDatabaseEnabled
-    ? await findManySafely(
-        () =>
-          prisma!.booking.findMany({
-            where: {
-              bookingDate: date,
-              locationKey: {
-                in: locationAliases,
-              },
-            },
-            orderBy: [{ slot: "asc" }, { createdAt: "asc" }],
-          }),
-        [],
-      )
+    ? await prisma!.booking.findMany({
+        where: {
+          bookingDate: date,
+          locationKey: {
+            in: locationAliases,
+          },
+        },
+        orderBy: [{ slot: "asc" }, { createdAt: "asc" }],
+      })
     : [];
 
   return bookings.map((booking) => ({
@@ -320,6 +364,7 @@ export function parseBookingForm(formData: FormData, language: SiteLanguage) {
     weatherMode: getStringOrUndefined("weatherMode"),
     weatherPreset: getStringOrUndefined("weatherPreset"),
     customWeather: getStringOrUndefined("customWeather"),
+    shortNoticeAcknowledged: getStringOrUndefined("shortNoticeAcknowledged"),
     temperature: getStringOrUndefined("temperature"),
     temperatureUnit: getStringOrUndefined("temperatureUnit"),
     windSpeedMps: getStringOrUndefined("windSpeedMps"),
@@ -435,6 +480,10 @@ export async function createBooking(input: z.infer<ReturnType<typeof getBookingS
 
   if (!locationPath || !locationPath.includes(locationKey) || !locationPathAliases) {
     throw new Error(strings.invalidBooking);
+  }
+
+  if (isShortNoticeBooking(input.date, input.slot) && input.shortNoticeAcknowledged !== "true") {
+    throw new Error(strings.shortNoticeConfirmationRequired);
   }
 
   const booking = await prisma.$transaction(async (tx) => {
